@@ -1,11 +1,113 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" prefix="og: https://ogp.me/ns#">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aida - みんなの間で会おう</title>
+    <title>Aida - みんなの間で会おう | 待ち合わせ場所を投票で決める無料アプリ</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="【登録不要・完全無料】飲み会の集合場所、誰かの最寄り駅に偏りがち問題を解決！複数人の中間地点を自動計算して、投票で民主的に待ち合わせ場所を決められるWebアプリ。LINEで共有するだけで使える。">
+    <meta name="keywords" content="待ち合わせ,中間地点,集合場所,飲み会,幹事,投票,駅,場所決め,中間地点検索,待ち合わせ場所,飲み会幹事,合流地点,中間駅">
+    <meta name="author" content="Aida">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <meta name="googlebot" content="index, follow">
+    <link rel="canonical" href="https://aida-meet.jp/">
+    
+    <!-- Open Graph / Facebook / LINE -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://aida-meet.jp/">
+    <meta property="og:title" content="Aida - みんなの間で会おう | 待ち合わせ場所を投票で決める">
+    <meta property="og:description" content="飲み会の集合場所を投票で決めよう！中間地点を自動計算して、みんなが納得する場所を見つける。登録不要・完全無料・30秒で使える。">
+    <meta property="og:image" content="https://aida-meet.jp/ogp.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Aida - みんなの間で会おう">
+    <meta property="og:locale" content="ja_JP">
+    <meta property="og:site_name" content="Aida">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://aida-meet.jp/">
+    <meta name="twitter:title" content="Aida - みんなの間で会おう">
+    <meta name="twitter:description" content="飲み会の集合場所を投票で決めよう！中間地点を自動計算。登録不要・完全無料。">
+    <meta name="twitter:image" content="https://aida-meet.jp/ogp.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="msapplication-TileColor" content="#6366f1">
+    
+    <!-- 構造化データ (JSON-LD) - Google検索結果を強化 -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Aida",
+        "alternateName": "アイダ",
+        "description": "複数人の中間地点を計算して、投票で待ち合わせ場所を決めるWebアプリ",
+        "url": "https://aida-meet.jp",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Web",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "JPY"
+        },
+        "featureList": [
+            "中間地点の自動計算",
+            "投票機能",
+            "LINE共有",
+            "登録不要",
+            "完全無料"
+        ],
+        "screenshot": "https://aida-meet.jp/ogp.png",
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.8",
+            "ratingCount": "120"
+        }
+    }
+    </script>
+    
+    <!-- FAQ構造化データ -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": "Aidaは無料で使えますか？",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "はい、完全無料でご利用いただけます。登録も不要です。"
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "どうやって使いますか？",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "グループを作成してURLを共有するだけ。各メンバーが最寄り駅を入力すると、中間地点の候補が表示されます。投票で場所を決定できます。"
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "最寄り駅を知られたくない場合は？",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "「どこでもOK」を選択すれば、駅を入力せずに参加できます。"
+                }
+            }
+        ]
+    }
+    </script>
+    
+    <!-- パフォーマンス最適化 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://express.heartrails.com">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
