@@ -113,7 +113,7 @@
             <div id="normalSection" class="hidden space-y-4">
                 <div class="glass-card p-6">
                     <h2 class="text-lg font-black text-slate-900 mb-2">📍 ノーマル候補</h2>
-                    <p class="text-xs text-slate-400 mb-4">重心・密集度・主要駅を考慮した4つの候補</p>
+                    <p class="text-xs text-slate-400 mb-4">重心・密集度・主要駅を考慮し3つの候補</p>
                     <div id="normalMap" class="map-container mb-4"></div>
                     <div id="normalCandidates" class="space-y-3"></div>
                 </div>
@@ -252,6 +252,69 @@ async function calculateAndRenderNormal(stationMembers) {
     stationMembers.forEach(m => { const w = stationCount[m.station]; totalLat += m.lat * w; totalLng += m.lng * w; totalWeight += w; });
     const densityLat = totalLat / totalWeight, densityLng = totalLng / totalWeight;
     
+    // 全国の主要駅（人口が多いエリアの駅）
+    const majorStations = [
+        // 東京都心
+        { name: '東京', lat: 35.6812, lng: 139.7671 },
+        { name: '新宿', lat: 35.6896, lng: 139.7006 },
+        { name: '渋谷', lat: 35.6580, lng: 139.7016 },
+        { name: '池袋', lat: 35.7295, lng: 139.7109 },
+        { name: '品川', lat: 35.6284, lng: 139.7387 },
+        { name: '上野', lat: 35.7141, lng: 139.7774 },
+        // 神奈川
+        { name: '横浜', lat: 35.4657, lng: 139.6225 },
+        { name: '川崎', lat: 35.5308, lng: 139.7030 },
+        { name: '藤沢', lat: 35.3386, lng: 139.4870 },
+        { name: '小田原', lat: 35.2564, lng: 139.1550 },
+        // 埼玉
+        { name: '大宮', lat: 35.9063, lng: 139.6237 },
+        { name: '川越', lat: 35.9078, lng: 139.4856 },
+        { name: '所沢', lat: 35.7872, lng: 139.4690 },
+        // 千葉
+        { name: '千葉', lat: 35.6139, lng: 140.1137 },
+        { name: '船橋', lat: 35.7015, lng: 139.9854 },
+        { name: '柏', lat: 35.8617, lng: 139.9714 },
+        // 北関東
+        { name: '宇都宮', lat: 36.5592, lng: 139.8985 },
+        { name: '高崎', lat: 36.3219, lng: 139.0134 },
+        { name: '水戸', lat: 36.3706, lng: 140.4769 },
+        // 静岡
+        { name: '静岡', lat: 34.9717, lng: 138.3889 },
+        { name: '浜松', lat: 34.7038, lng: 137.7349 },
+        { name: '熱海', lat: 35.1039, lng: 139.0779 },
+        { name: '沼津', lat: 35.0956, lng: 138.8636 },
+        // 中部
+        { name: '名古屋', lat: 35.1709, lng: 136.8815 },
+        { name: '金沢', lat: 36.5780, lng: 136.6476 },
+        { name: '長野', lat: 36.6432, lng: 138.1889 },
+        { name: '新潟', lat: 37.9126, lng: 139.0634 },
+        { name: '岐阜', lat: 35.4094, lng: 136.7567 },
+        // 関西
+        { name: '大阪', lat: 34.7024, lng: 135.4959 },
+        { name: '京都', lat: 34.9858, lng: 135.7588 },
+        { name: '神戸', lat: 34.6794, lng: 135.1800 },
+        { name: '奈良', lat: 34.6851, lng: 135.8048 },
+        { name: '姫路', lat: 34.8267, lng: 134.6914 },
+        // 中国
+        { name: '広島', lat: 34.3963, lng: 132.4594 },
+        { name: '岡山', lat: 34.6655, lng: 133.9185 },
+        // 四国
+        { name: '高松', lat: 34.3503, lng: 134.0467 },
+        { name: '松山', lat: 33.8396, lng: 132.7656 },
+        // 九州
+        { name: '博多', lat: 33.5902, lng: 130.4207 },
+        { name: '小倉', lat: 33.8863, lng: 130.8825 },
+        { name: '熊本', lat: 32.7898, lng: 130.6875 },
+        { name: '鹿児島中央', lat: 31.5842, lng: 130.5414 },
+        // 東北
+        { name: '仙台', lat: 38.2601, lng: 140.8820 },
+        { name: '盛岡', lat: 39.7014, lng: 141.1369 },
+        { name: '郡山', lat: 37.3985, lng: 140.3883 },
+        // 北海道
+        { name: '札幌', lat: 43.0687, lng: 141.3508 },
+        { name: '函館', lat: 41.7739, lng: 140.7264 }
+    ];
+    
     try {
         const [res1, res2] = await Promise.all([
             fetch(`https://express.heartrails.com/api/json?method=getStations&x=${avgLng}&y=${avgLat}`),
@@ -264,10 +327,86 @@ async function calculateAndRenderNormal(stationMembers) {
         const stations1 = data1.response?.station ? [...new Map(data1.response.station.slice(0, 20).map(c => [c.name, c])).values()] : [];
         const stations2 = data2.response?.station ? [...new Map(data2.response.station.slice(0, 20).map(c => [c.name, c])).values()] : [];
         
-        // 駅が見つからない場合（重心が海や山の場合）、メンバーの駅を候補にする
+        // 駅が見つからない場合、重心に最も近い主要駅を候補にする
         if (stations1.length === 0 && stations2.length === 0) {
-            document.getElementById('normalCandidates').innerHTML = '<p class="text-center text-slate-400 py-4">⚠️ メンバーの距離が離れすぎているため、中間地点に駅が見つかりませんでした。<br>「誰かに寄せる」から候補を選んでください。</p>';
-            normalCandidates = [];
+            // 重心から各主要駅への距離を計算（緯度1度≒111km）
+            const stationsWithDist = majorStations.map(st => ({
+                ...st,
+                distKm: Math.sqrt(Math.pow((st.lat - avgLat) * 111, 2) + Math.pow((st.lng - avgLng) * 91, 2))
+            })).sort((a, b) => a.distKm - b.distKm);
+            
+            // 最も近い主要駅
+            const nearestMajor = stationsWithDist[0];
+            const fallbackCandidates = [{
+                name: nearestMajor.name,
+                lat: nearestMajor.lat,
+                lng: nearestMajor.lng,
+                line: '主要ターミナル',
+                type: '🏙️ 重心に最も近い主要駅'
+            }];
+            
+            // 主要駅周辺5km以内の栄えている駅を検索
+            try {
+                const nearbyRes = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${nearestMajor.lng}&y=${nearestMajor.lat}`);
+                const nearbyData = await nearbyRes.json();
+                if (nearbyData.response?.station) {
+                    const nearbyStations = nearbyData.response.station;
+                    const usedNames = new Set([nearestMajor.name]);
+                    // 5km以内の栄えている駅を追加
+                    for (const s of nearbyStations) {
+                        if (fallbackCandidates.length >= 4) break;
+                        const distKm = Math.sqrt(Math.pow((parseFloat(s.y) - nearestMajor.lat) * 111, 2) + Math.pow((parseFloat(s.x) - nearestMajor.lng) * 91, 2));
+                        if (distKm <= 5 && busyStations.includes(s.name) && !usedNames.has(s.name)) {
+                            fallbackCandidates.push({
+                                name: s.name,
+                                lat: parseFloat(s.y),
+                                lng: parseFloat(s.x),
+                                line: s.line,
+                                type: '🏙️ 周辺の栄えている駅'
+                            });
+                            usedNames.add(s.name);
+                        }
+                    }
+                    // まだ4つに満たない場合、2番目に近い主要駅も追加
+                    if (fallbackCandidates.length < 4 && stationsWithDist.length > 1) {
+                        for (let i = 1; i < stationsWithDist.length && fallbackCandidates.length < 4; i++) {
+                            const st = stationsWithDist[i];
+                            if (!usedNames.has(st.name)) {
+                                fallbackCandidates.push({
+                                    name: st.name,
+                                    lat: st.lat,
+                                    lng: st.lng,
+                                    line: '主要ターミナル',
+                                    type: '🏙️ 候補の主要駅'
+                                });
+                                usedNames.add(st.name);
+                            }
+                        }
+                    }
+                }
+            } catch(e) { console.error('Nearby search error:', e); }
+            
+            // 4つに満たない場合、他の主要駅で埋める
+            const usedNames = new Set(fallbackCandidates.map(c => c.name));
+            for (let i = 1; i < stationsWithDist.length && fallbackCandidates.length < 4; i++) {
+                const st = stationsWithDist[i];
+                if (!usedNames.has(st.name)) {
+                    fallbackCandidates.push({
+                        name: st.name,
+                        lat: st.lat,
+                        lng: st.lng,
+                        line: '主要ターミナル',
+                        type: '🏙️ 候補の主要駅'
+                    });
+                    usedNames.add(st.name);
+                }
+            }
+            
+            normalCandidates = fallbackCandidates.slice(0, 4);
+            document.getElementById('normalCandidates').innerHTML = `
+                <p class="text-center text-amber-600 py-2 mb-4">⚠️ メンバーの距離が離れているため、主要駅エリアを候補として表示しています</p>
+            ` + normalCandidates.map((c, i) => renderCandidateCard(c, i, [], getMyStation(), 'normal')).join('');
+            renderNormalMap();
             return;
         }
         
