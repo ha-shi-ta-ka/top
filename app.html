@@ -14,58 +14,29 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     <script>
         tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Noto Sans JP"', 'sans-serif'],
-                        heading: ['"Outfit"', 'sans-serif'],
-                    }
-                }
-            }
+            theme: { extend: { fontFamily: { sans: ['"Noto Sans JP"', 'sans-serif'], heading: ['"Outfit"', 'sans-serif'] } } }
         }
     </script>
     <style>
-        .glass {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-        }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 1.5rem;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-        }
-        .suggestions { 
-            position: absolute; left: 0; right: 0; z-index: 9999; 
-            background: white; border-radius: 12px; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
-            max-height: 200px; overflow-y: auto; display: none; 
-        }
+        .glass { background: rgba(255,255,255,0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.5); }
+        .glass-card { background: rgba(255,255,255,0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.5); border-radius: 1.5rem; box-shadow: 0 10px 40px rgba(0,0,0,0.08); }
+        .suggestions { position: absolute; left: 0; right: 0; z-index: 9999; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); max-height: 200px; overflow-y: auto; display: none; }
         .suggestions.show { display: block; }
         #map { height: 200px; border-radius: 12px; }
     </style>
 </head>
 <body class="font-sans bg-slate-50 text-slate-900 min-h-screen">
-    <!-- Background -->
     <div class="fixed inset-0 pointer-events-none overflow-hidden">
         <div class="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-500/20 rounded-full blur-[100px]"></div>
         <div class="absolute bottom-[-20%] left-[-10%] w-[400px] h-[400px] bg-pink-500/20 rounded-full blur-[100px]"></div>
     </div>
-
-    <!-- Header -->
     <nav class="fixed top-0 left-0 right-0 z-50 glass border-b border-white/20 px-6 py-4">
         <div class="max-w-2xl mx-auto flex justify-between items-center">
             <a href="index.html" class="text-2xl font-black tracking-tighter bg-gradient-to-r from-indigo-500 to-pink-500 bg-clip-text text-transparent font-heading">Aida</a>
             <a href="index.html" class="text-sm text-slate-500 hover:text-indigo-500 transition-colors">トップへ</a>
         </div>
     </nav>
-
     <main class="relative z-10 max-w-2xl mx-auto px-4 pt-24 pb-12">
-        <!-- 新規作成画面 -->
         <div id="createView">
             <div class="glass-card p-8">
                 <div class="text-center mb-8">
@@ -73,88 +44,56 @@
                     <h1 class="text-2xl font-black text-slate-900 font-heading">新しいグループを作成</h1>
                     <p class="text-slate-500 mt-2">待ち合わせ場所をみんなで決めよう</p>
                 </div>
-                <input type="text" id="groupName" placeholder="グループ名（例: 忘年会2025）" 
-                    class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg mb-4 transition-colors">
-                <button onclick="createGroup()" 
-                    class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">
-                    グループを作成 →
-                </button>
+                <input type="text" id="groupName" placeholder="グループ名（例: 忘年会2025）" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg mb-4">
+                <button onclick="createGroup()" class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">グループを作成 →</button>
             </div>
         </div>
-
-        <!-- グループ画面 -->
         <div id="groupView" class="hidden space-y-6">
-            <!-- URL共有 -->
             <div class="glass-card p-6">
-                <h2 class="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">📤 このURLを共有</h2>
-                <div class="bg-slate-100 rounded-xl p-4 mb-4">
-                    <p id="shareUrl" class="text-sm text-slate-700 break-all font-mono"></p>
-                </div>
+                <h2 class="text-sm font-bold text-slate-500 mb-4">📤 このURLを共有</h2>
+                <div class="bg-slate-100 rounded-xl p-4 mb-4"><p id="shareUrl" class="text-sm text-slate-700 break-all font-mono"></p></div>
                 <div class="grid grid-cols-2 gap-3 mb-3">
-                    <button onclick="copyUrl()" class="py-3 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-colors">
-                        📋 コピー
-                    </button>
-                    <button onclick="shareToLine()" class="py-3 rounded-xl bg-[#06C755] text-white font-bold hover:opacity-90 transition-opacity">
-                        💬 LINE
-                    </button>
+                    <button onclick="copyUrl()" class="py-3 rounded-xl bg-slate-900 text-white font-bold">📋 コピー</button>
+                    <button onclick="shareToLine()" class="py-3 rounded-xl bg-[#06C755] text-white font-bold">💬 LINE</button>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
-                    <button onclick="shareToFacebook()" class="py-3 rounded-xl bg-[#1877F2] text-white font-bold hover:opacity-90 transition-opacity">
-                        📘 Facebook
-                    </button>
-                    <button onclick="shareToInstagram()" class="py-3 rounded-xl bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] text-white font-bold hover:opacity-90 transition-opacity">
-                        📷 Instagram
-                    </button>
+                    <button onclick="shareToFacebook()" class="py-3 rounded-xl bg-[#1877F2] text-white font-bold">📘 Facebook</button>
+                    <button onclick="shareToInstagram()" class="py-3 rounded-xl bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] text-white font-bold">📷 Instagram</button>
                 </div>
             </div>
-
-            <!-- メンバー -->
             <div class="glass-card p-6">
-                <h2 class="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">👥 メンバー（<span id="memberCount">0</span>人）</h2>
+                <h2 class="text-sm font-bold text-slate-500 mb-4">👥 メンバー（<span id="memberCount">0</span>人）</h2>
                 <div id="memberList" class="space-y-3 mb-4"></div>
-                <button id="joinBtn" onclick="showJoinForm()" 
-                    class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">
-                    ✋ 自分も参加する
-                </button>
+                <button id="joinBtn" onclick="showJoinForm()" class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">✋ 自分も参加する</button>
             </div>
-
-            <!-- 参加フォーム -->
             <div id="joinForm" class="hidden glass-card p-6">
-                <h2 class="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">🙋 参加情報を入力</h2>
-                <input type="text" id="nickname" placeholder="ニックネーム" 
-                    class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg mb-4 transition-colors">
-                
+                <h2 class="text-sm font-bold text-slate-500 mb-4">🙋 参加情報を入力</h2>
+                <input type="text" id="nickname" placeholder="ニックネーム" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg mb-4">
                 <p class="text-sm font-bold text-slate-700 mb-2">🚉 あなたの出発駅（最寄り駅）</p>
                 <p class="text-xs text-slate-400 mb-3">※ここから中間地点を計算します</p>
-                
-                <label id="anywhereBtn" onclick="toggleAnywhere()" 
-                    class="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border-2 border-amber-200 cursor-pointer mb-4 hover:bg-amber-100 transition-colors">
+                <label id="anywhereBtn" onclick="toggleAnywhere()" class="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border-2 border-amber-200 cursor-pointer mb-4">
                     <div id="checkboxIcon" class="w-6 h-6 rounded-md border-2 border-amber-400 flex items-center justify-center text-white text-sm font-bold"></div>
                     <span class="font-bold text-amber-700">どこでもOK（駅を指定しない）</span>
                 </label>
-                
                 <div id="stationWrapper" class="relative mb-4">
-                    <input type="text" id="stationInput" placeholder="出発駅を入力（例: 渋谷、新宿...）" 
-                        oninput="searchStation()" onfocus="searchStation()"
-                        class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg transition-colors">
+                    <input type="text" id="stationInput" placeholder="出発駅を入力（例: 渋谷、新宿...）" oninput="searchStation()" onfocus="searchStation()" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg">
                     <div id="suggestions" class="suggestions"></div>
                 </div>
-                
-                <button onclick="joinGroup()" 
-                    class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">
-                    参加する →
-                </button>
+                <button onclick="joinGroup()" class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">参加する →</button>
             </div>
-
-            <!-- 地図 -->
+            <!-- 寄せる機能 -->
+            <div id="biasCard" class="hidden glass-card p-6">
+                <h2 class="text-sm font-bold text-slate-500 mb-4">🎯 候補の調整</h2>
+                <p class="text-xs text-slate-400 mb-3">特定の人に寄せたり、密集度を考慮できます</p>
+                <div class="flex flex-wrap gap-2 mb-4" id="biasMemberList"></div>
+                <button onclick="calculateWithDensity()" class="w-full py-3 rounded-xl bg-purple-500 text-white font-bold hover:opacity-90">📊 密集度を考慮して再計算</button>
+            </div>
             <div id="mapCard" class="hidden glass-card p-6">
-                <h2 class="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">🗺️ 候補エリア</h2>
+                <h2 class="text-sm font-bold text-slate-500 mb-4">🗺️ 候補エリア</h2>
                 <div id="map"></div>
             </div>
-
-            <!-- 候補 -->
             <div id="candidatesCard" class="hidden glass-card p-6">
-                <h2 class="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">🗳️ 候補に投票しよう</h2>
+                <h2 class="text-sm font-bold text-slate-500 mb-4">🗳️ 候補に投票しよう</h2>
                 <p class="text-xs text-slate-400 mb-4">タップで投票・もう一度タップで取り消し</p>
                 <div id="candidateList" class="space-y-4"></div>
             </div>
@@ -175,23 +114,15 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-let groupId = null, groupData = null, myMemberId = null, isAnywhere = false, selectedStation = null, map = null;
+let groupId = null, groupData = null, myMemberId = null, isAnywhere = false, selectedStation = null, map = null, lastMemberCount = 0;
 
 const urlParams = new URLSearchParams(window.location.search);
 groupId = urlParams.get('g');
-
-if (groupId) {
-    document.getElementById('createView').classList.add('hidden');
-    document.getElementById('groupView').classList.remove('hidden');
-    loadGroup();
-}
+if (groupId) { document.getElementById('createView').classList.add('hidden'); document.getElementById('groupView').classList.remove('hidden'); loadGroup(); }
 
 async function createGroup() {
     const name = document.getElementById('groupName').value.trim() || '新しいグループ';
-    const docRef = await db.collection('groups').add({
-        name, members: [], candidates: [], votes: {},
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    const docRef = await db.collection('groups').add({ name, members: [], candidates: [], votes: {}, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
     groupId = docRef.id;
     window.history.pushState({}, '', `?g=${groupId}`);
     document.getElementById('createView').classList.add('hidden');
@@ -204,10 +135,17 @@ function getShareUrl() {
     return 'https://top-bay-three.vercel.app/app.html?g=' + groupId;
 }
 
+function getMyStation() {
+    const savedId = localStorage.getItem('aida_member_' + groupId);
+    const members = groupData?.members || [];
+    const me = members.find(m => m.id === savedId);
+    return me?.station || null;
+}
+
 async function loadGroup() {
     document.getElementById('shareUrl').textContent = getShareUrl();
     db.collection('groups').doc(groupId).onSnapshot(doc => {
-        if (doc.exists) { groupData = doc.data(); renderMembers(); checkAndShowCandidates(); }
+        if (doc.exists) { groupData = doc.data(); renderMembers(); checkAndShowCandidates(); renderBiasOptions(); }
     });
 }
 
@@ -215,21 +153,16 @@ function renderMembers() {
     const list = document.getElementById('memberList');
     const members = groupData.members || [];
     document.getElementById('memberCount').textContent = members.length;
-    
     if (members.length === 0) {
         list.innerHTML = '<p class="text-center text-slate-400 py-8">まだ誰も参加していません</p>';
     } else {
         list.innerHTML = members.map(m => `
             <div class="flex items-center gap-4 p-4 bg-white/50 rounded-xl">
                 <div class="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">${m.name.charAt(0)}</div>
-                <div>
-                    <p class="font-bold text-slate-900">${m.name}</p>
-                    <p class="text-sm text-slate-500">${m.anywhere ? '🌍 どこでもOK' : '🚉 ' + m.station + '駅'}</p>
-                </div>
+                <div><p class="font-bold text-slate-900">${m.name}</p><p class="text-sm text-slate-500">${m.anywhere ? '🌍 どこでもOK' : '🚉 ' + m.station + '駅'}</p></div>
             </div>
         `).join('');
     }
-    
     const savedId = localStorage.getItem('aida_member_' + groupId);
     if (savedId && members.find(m => m.id === savedId)) {
         myMemberId = savedId;
@@ -238,28 +171,70 @@ function renderMembers() {
     }
 }
 
-function showJoinForm() {
-    document.getElementById('joinForm').classList.remove('hidden');
-    document.getElementById('joinBtn').classList.add('hidden');
+function renderBiasOptions() {
+    const members = groupData.members || [];
+    const stationMembers = members.filter(m => !m.anywhere && m.station);
+    if (stationMembers.length < 2) { document.getElementById('biasCard').classList.add('hidden'); return; }
+    document.getElementById('biasCard').classList.remove('hidden');
+    document.getElementById('biasMemberList').innerHTML = stationMembers.map(m => `
+        <button onclick="biasToMember('${m.id}')" class="px-4 py-2 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm hover:bg-indigo-200 transition-colors">
+            ${m.name}さんに寄せる
+        </button>
+    `).join('');
 }
+
+async function biasToMember(memberId) {
+    const members = groupData.members || [];
+    const target = members.find(m => m.id === memberId);
+    if (!target || !target.lat) return;
+    try {
+        const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${target.lng}&y=${target.lat}`);
+        const data = await res.json();
+        if (data.response?.station) {
+            let candidates = [...new Map(data.response.station.slice(0, 10).map(c => [c.name, c])).values()].slice(0, 5);
+            candidates = candidates.map(c => ({ name: c.name, lat: parseFloat(c.y), lng: parseFloat(c.x), line: c.line }));
+            const votes = {}; candidates.forEach(c => votes[c.name] = 0);
+            await db.collection('groups').doc(groupId).update({ candidates, votes });
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function calculateWithDensity() {
+    const members = groupData.members || [];
+    const stationMembers = members.filter(m => !m.anywhere && m.lat && m.lng);
+    if (stationMembers.length < 2) return;
+    // 密集度を考慮：同じ駅の人が多いほど重みを増やす
+    const stationCount = {};
+    stationMembers.forEach(m => { stationCount[m.station] = (stationCount[m.station] || 0) + 1; });
+    let totalLat = 0, totalLng = 0, totalWeight = 0;
+    stationMembers.forEach(m => {
+        const weight = stationCount[m.station]; // 同じ駅の人数分の重み
+        totalLat += m.lat * weight;
+        totalLng += m.lng * weight;
+        totalWeight += weight;
+    });
+    const avgLat = totalLat / totalWeight;
+    const avgLng = totalLng / totalWeight;
+    try {
+        const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${avgLng}&y=${avgLat}`);
+        const data = await res.json();
+        if (data.response?.station) {
+            let candidates = [...new Map(data.response.station.slice(0, 10).map(c => [c.name, c])).values()].slice(0, 5);
+            candidates = candidates.map(c => ({ name: c.name, lat: parseFloat(c.y), lng: parseFloat(c.x), line: c.line }));
+            const votes = {}; candidates.forEach(c => votes[c.name] = 0);
+            await db.collection('groups').doc(groupId).update({ candidates, votes });
+        }
+    } catch(e) { console.error(e); }
+}
+
+function showJoinForm() { document.getElementById('joinForm').classList.remove('hidden'); document.getElementById('joinBtn').classList.add('hidden'); }
 
 function toggleAnywhere() {
     isAnywhere = !isAnywhere;
     const checkbox = document.getElementById('checkboxIcon');
     const wrapper = document.getElementById('stationWrapper');
-    const btn = document.getElementById('anywhereBtn');
-    
-    if (isAnywhere) {
-        checkbox.innerHTML = '✓';
-        checkbox.classList.add('bg-amber-400');
-        wrapper.classList.add('hidden');
-        btn.classList.add('bg-amber-100', 'border-amber-400');
-    } else {
-        checkbox.innerHTML = '';
-        checkbox.classList.remove('bg-amber-400');
-        wrapper.classList.remove('hidden');
-        btn.classList.remove('bg-amber-100', 'border-amber-400');
-    }
+    if (isAnywhere) { checkbox.innerHTML = '✓'; checkbox.classList.add('bg-amber-400'); wrapper.classList.add('hidden'); }
+    else { checkbox.innerHTML = ''; checkbox.classList.remove('bg-amber-400'); wrapper.classList.remove('hidden'); }
 }
 
 let searchTimeout = null;
@@ -278,8 +253,7 @@ function searchStation() {
                 const unique = [...new Map(data.response.station.map(s => [s.name + s.line, s])).values()];
                 suggestionsDiv.innerHTML = unique.slice(0, 8).map(s => `
                     <div class="p-4 hover:bg-slate-50 cursor-pointer border-b border-slate-100" onclick="selectStation('${s.name}',${s.y},${s.x},'${s.line}')">
-                        <p class="font-bold">${s.name}駅</p>
-                        <p class="text-sm text-slate-500">${s.line}（${s.prefecture}）</p>
+                        <p class="font-bold">${s.name}駅</p><p class="text-sm text-slate-500">${s.line}（${s.prefecture}）</p>
                     </div>
                 `).join('');
             } else { suggestionsDiv.innerHTML = '<div class="p-4 text-slate-400">見つかりません</div>'; }
@@ -287,52 +261,31 @@ function searchStation() {
     }, 300);
 }
 
-function selectStation(name, lat, lng, line) {
-    selectedStation = { name, lat, lng, line };
-    document.getElementById('stationInput').value = name;
-    document.getElementById('suggestions').classList.remove('show');
-}
-
-document.addEventListener('click', e => {
-    if (!e.target.closest('#stationWrapper')) document.getElementById('suggestions').classList.remove('show');
-});
+function selectStation(name, lat, lng, line) { selectedStation = { name, lat, lng, line }; document.getElementById('stationInput').value = name; document.getElementById('suggestions').classList.remove('show'); }
+document.addEventListener('click', e => { if (!e.target.closest('#stationWrapper')) document.getElementById('suggestions').classList.remove('show'); });
 
 async function joinGroup() {
     const members = groupData.members || [];
-    if (members.length >= 20) {
-        alert('メンバーは最大20人までです');
-        return;
-    }
-    
+    if (members.length >= 20) { alert('メンバーは最大20人までです'); return; }
     const name = document.getElementById('nickname').value.trim();
     if (!name) { alert('ニックネームを入力してください'); return; }
     if (!isAnywhere && !selectedStation) { alert('駅を選択するか「どこでもOK」を選んでください'); return; }
-    
     const memberId = 'member_' + Date.now();
     const member = { id: memberId, name, anywhere: isAnywhere, station: isAnywhere ? null : selectedStation.name, lat: isAnywhere ? null : selectedStation.lat, lng: isAnywhere ? null : selectedStation.lng };
-    
     await db.collection('groups').doc(groupId).update({ members: firebase.firestore.FieldValue.arrayUnion(member) });
     myMemberId = memberId;
     localStorage.setItem('aida_member_' + groupId, memberId);
     document.getElementById('joinForm').classList.add('hidden');
 }
 
-let lastMemberCount = 0;
-
 async function checkAndShowCandidates() {
     const members = groupData.members || [];
     const stationMembers = members.filter(m => !m.anywhere && m.lat && m.lng);
-    
-    // メンバー数が変わったら候補を再計算
     if (stationMembers.length >= 2 && stationMembers.length !== lastMemberCount) {
         lastMemberCount = stationMembers.length;
         await calculateCandidates(stationMembers);
     }
-    
-    if (groupData.candidates && groupData.candidates.length > 0) { 
-        renderCandidates(); 
-        renderMap(); 
-    }
+    if (groupData.candidates && groupData.candidates.length > 0) { renderCandidates(); renderMap(); }
 }
 
 async function calculateCandidates(stationMembers) {
@@ -354,10 +307,7 @@ function renderMap() {
     document.getElementById('mapCard').classList.remove('hidden');
     const candidates = groupData.candidates || [];
     if (candidates.length === 0) return;
-    if (!map) {
-        map = L.map('map').setView([candidates[0].lat, candidates[0].lng], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
-    }
+    if (!map) { map = L.map('map').setView([candidates[0].lat, candidates[0].lng], 13); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map); }
     map.eachLayer(layer => { if (layer instanceof L.Marker) map.removeLayer(layer); });
     candidates.forEach((c, i) => {
         const icon = L.divIcon({ className: '', html: `<div style="background:linear-gradient(135deg,#6366f1,#ec4899);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">${i+1}</div>`, iconSize: [28, 28] });
@@ -372,11 +322,13 @@ function renderCandidates() {
     const votes = groupData.votes || {};
     const totalVotes = Object.values(votes).reduce((a, b) => a + b, 0) || 1;
     const myVote = localStorage.getItem('aida_vote_' + groupId);
+    const myStation = getMyStation();
     
     document.getElementById('candidateList').innerHTML = candidates.map((c, i) => {
         const voteCount = votes[c.name] || 0;
         const pct = Math.round((voteCount / totalVotes) * 100);
         const isVoted = myVote === c.name;
+        const navitimeUrl = myStation ? `https://www.navitime.co.jp/transfer/searchlist?orvStationName=${encodeURIComponent(myStation)}&dnvStationName=${encodeURIComponent(c.name)}` : '';
         return `
             <div class="p-5 rounded-2xl ${isVoted ? 'bg-green-50 border-2 border-green-400' : 'bg-white/60 border-2 border-transparent'} transition-all cursor-pointer hover:shadow-lg" onclick="vote('${c.name}')">
                 <div class="flex items-center justify-between mb-2">
@@ -391,15 +343,14 @@ function renderCandidates() {
                 </div>
                 <p class="text-sm text-slate-500 mb-3">${c.line || ''}</p>
                 <div class="flex items-center gap-3 mb-4">
-                    <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all" style="width:${pct}%"></div>
-                    </div>
+                    <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all" style="width:${pct}%"></div></div>
                     <span class="text-sm font-bold text-slate-500">${pct}%</span>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <a href="https://www.google.com/search?q=${encodeURIComponent(c.name + '駅 居酒屋 食べログ')}" target="_blank" onclick="event.stopPropagation()" class="py-3 rounded-xl bg-orange-500 text-white text-center font-bold text-sm hover:opacity-90">🍺 食べログ</a>
-                    <a href="https://www.google.com/maps/search/居酒屋/@${c.lat},${c.lng},16z" target="_blank" onclick="event.stopPropagation()" class="py-3 rounded-xl bg-blue-500 text-white text-center font-bold text-sm hover:opacity-90">🗺️ マップ</a>
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <a href="https://www.google.com/search?q=${encodeURIComponent(c.name + '駅 居酒屋 食べログ')}" target="_blank" onclick="event.stopPropagation()" class="py-3 rounded-xl bg-orange-500 text-white text-center font-bold text-sm">🍺 食べログ</a>
+                    <a href="https://www.google.com/maps/search/居酒屋/@${c.lat},${c.lng},16z" target="_blank" onclick="event.stopPropagation()" class="py-3 rounded-xl bg-blue-500 text-white text-center font-bold text-sm">🗺️ Google Map</a>
                 </div>
+                ${myStation ? `<a href="${navitimeUrl}" target="_blank" onclick="event.stopPropagation()" class="block py-3 rounded-xl bg-green-500 text-white text-center font-bold text-sm">🚃 ${myStation}駅からの乗換案内</a>` : ''}
             </div>
         `;
     }).join('');
@@ -415,22 +366,7 @@ async function vote(stationName) {
 }
 
 function copyUrl() { navigator.clipboard.writeText(getShareUrl()); alert('URLをコピーしました！'); }
-
-function shareToLine() {
-    const name = groupData?.name || 'グループ';
-    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(`【${name}】の待ち合わせ場所を決めよう！\n\n${getShareUrl()}`)}`, '_blank');
-}
-
-function shareToFacebook() {
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getShareUrl())}`, '_blank', 'width=600,height=400');
-}
-
-function shareToInstagram() {
-    navigator.clipboard.writeText(getShareUrl());
-    // InstagramアプリのDMを開く（モバイルのみ）
-    window.location.href = 'instagram://direct-inbox';
-    setTimeout(() => {
-        alert('URLをコピーしました！\nInstagramのDMに貼り付けてください。');
-    }, 500);
-}
+function shareToLine() { window.open(`https://line.me/R/msg/text/?${encodeURIComponent(`【${groupData?.name || 'グループ'}】の待ち合わせ場所を決めよう！\n\n${getShareUrl()}`)}`, '_blank'); }
+function shareToFacebook() { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getShareUrl())}`, '_blank'); }
+function shareToInstagram() { navigator.clipboard.writeText(getShareUrl()); window.location.href = 'instagram://direct-inbox'; setTimeout(() => alert('URLをコピーしました！\nInstagramのDMに貼り付けてください。'), 500); }
 </script>
