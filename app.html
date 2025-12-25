@@ -470,24 +470,34 @@ let editAnywhere = false, editSelectedStation = null;
 function showEditForm() {
     const me = (groupData.members || []).find(m => m.id === myMemberId);
     if (!me) return;
-    editAnywhere = me.anywhere;
+    editAnywhere = me.anywhere || false;
     editSelectedStation = me.station ? { name: me.station, lat: me.lat, lng: me.lng } : null;
     document.getElementById('editForm').classList.remove('hidden');
     document.getElementById('editStationInput').value = me.station || '';
+    updateEditCheckbox();
+}
+
+function updateEditCheckbox() {
     const checkbox = document.getElementById('editCheckboxIcon');
     const wrapper = document.getElementById('editStationWrapper');
-    if (editAnywhere) { checkbox.innerHTML = '✓'; checkbox.classList.add('bg-amber-400'); wrapper.classList.add('hidden'); }
-    else { checkbox.innerHTML = ''; checkbox.classList.remove('bg-amber-400'); wrapper.classList.remove('hidden'); }
+    if (editAnywhere) { 
+        checkbox.innerHTML = '✓'; 
+        checkbox.classList.add('bg-amber-400'); 
+        wrapper.classList.add('hidden'); 
+    } else { 
+        checkbox.innerHTML = ''; 
+        checkbox.classList.remove('bg-amber-400'); 
+        wrapper.classList.remove('hidden'); 
+    }
 }
 
 function cancelEdit() { document.getElementById('editForm').classList.add('hidden'); }
 
 function toggleEditAnywhere() {
     editAnywhere = !editAnywhere;
-    const checkbox = document.getElementById('editCheckboxIcon');
-    const wrapper = document.getElementById('editStationWrapper');
-    if (editAnywhere) { checkbox.innerHTML = '✓'; checkbox.classList.add('bg-amber-400'); wrapper.classList.add('hidden'); }
-    else { checkbox.innerHTML = ''; checkbox.classList.remove('bg-amber-400'); wrapper.classList.remove('hidden'); }
+    editSelectedStation = null;
+    document.getElementById('editStationInput').value = '';
+    updateEditCheckbox();
 }
 
 let editSearchTimeout = null;
@@ -510,7 +520,12 @@ function searchEditStation() {
     }, 300);
 }
 
-function selectEditStation(name, lat, lng, line) { editSelectedStation = { name, lat, lng, line }; document.getElementById('editStationInput').value = name; document.getElementById('editSuggestions').classList.remove('show'); }
+function selectEditStation(name, lat, lng, line) { 
+    editSelectedStation = { name, lat, lng, line }; 
+    editAnywhere = false;
+    document.getElementById('editStationInput').value = name; 
+    document.getElementById('editSuggestions').classList.remove('show'); 
+}
 
 async function saveEdit() {
     if (!editAnywhere && !editSelectedStation) { alert('駅を選択するか「どこでもOK」を選んでください'); return; }
