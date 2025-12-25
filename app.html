@@ -48,6 +48,22 @@
         .share-url { flex: 1; font-size: 13px; color: var(--dark); word-break: break-all; }
         .copy-btn { padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
         .hidden { display: none !important; }
+        #map { height: 200px; width: 100%; border-radius: 12px; margin-bottom: 16px; }
+        .candidate-card { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 12px; transition: all 0.2s; }
+        .candidate-card.voted { border-color: var(--success); background: #ecfdf5; }
+        .candidate-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .candidate-name { font-size: 16px; font-weight: 700; }
+        .candidate-badge { font-size: 11px; padding: 3px 8px; border-radius: 20px; font-weight: 600; }
+        .badge-recommend { background: var(--gradient); color: white; }
+        .badge-votes { background: #dbeafe; color: #1d4ed8; }
+        .candidate-line { font-size: 12px; color: var(--gray); margin-bottom: 8px; }
+        .vote-btn { display: inline-block; padding: 10px 20px; background: var(--gradient); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
+        .vote-btn.voted { background: #ef4444; }
+        .vote-bar { height: 6px; background: #e2e8f0; border-radius: 3px; margin-bottom: 12px; overflow: hidden; }
+        .vote-bar-fill { height: 100%; background: var(--gradient); transition: width 0.3s; }
+        .candidate-links { display: flex; flex-direction: column; gap: 8px; }
+        .candidate-links a { display: block; padding: 12px 16px; background: white; color: var(--dark); text-decoration: none; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 14px; font-weight: 600; text-align: center; }
+        .candidate-links a:hover { background: #f1f5f9; }
     </style>
 </head>
 <body>
@@ -56,7 +72,6 @@
         <a href="index.html" class="header-link">トップへ</a>
     </div>
     <div class="container">
-        <!-- 新規作成画面 -->
         <div id="createView">
             <div class="card">
                 <div class="card-title">🎉 新しいグループを作成</div>
@@ -64,8 +79,6 @@
                 <button class="btn btn-primary" onclick="createGroup()">グループを作成</button>
             </div>
         </div>
-
-        <!-- グループ画面 -->
         <div id="groupView" class="hidden">
             <div class="card">
                 <div class="card-title">📤 このURLを共有</div>
@@ -75,14 +88,11 @@
                 </div>
                 <button class="btn btn-success" onclick="shareToLine()">📱 LINEで送る</button>
             </div>
-
             <div class="card">
                 <div class="card-title">👥 メンバー（<span id="memberCount">0</span>人）</div>
                 <div class="member-list" id="memberList"></div>
                 <button class="btn btn-primary" id="joinBtn" onclick="showJoinForm()">✋ 自分も参加する</button>
             </div>
-
-            <!-- 参加フォーム -->
             <div class="card hidden" id="joinForm">
                 <div class="card-title">🙋 参加情報を入力</div>
                 <input type="text" class="input" id="nickname" placeholder="ニックネーム">
@@ -96,10 +106,12 @@
                 </div>
                 <button class="btn btn-primary" onclick="joinGroup()">参加する</button>
             </div>
-
-            <!-- 候補表示 -->
+            <div class="card hidden" id="mapCard">
+                <div class="card-title">🗺️ 候補エリア</div>
+                <div id="map"></div>
+            </div>
             <div class="card hidden" id="candidatesCard">
-                <div class="card-title">🗳️ 候補に投票しよう</div>
+                <div class="card-title">🗳️ 候補に投票しよう（タップで投票/取消）</div>
                 <div id="candidateList"></div>
             </div>
         </div>
@@ -107,26 +119,6 @@
 </body>
 </html>
 
-<style>
-    .candidate-card { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; }
-    .candidate-card:hover { border-color: var(--primary); }
-    .candidate-card.voted { border-color: var(--success); background: #ecfdf5; }
-    .candidate-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-    .candidate-name { font-size: 16px; font-weight: 700; }
-    .candidate-badge { font-size: 11px; padding: 3px 8px; border-radius: 20px; font-weight: 600; }
-    .badge-recommend { background: var(--gradient); color: white; }
-    .badge-votes { background: #dbeafe; color: #1d4ed8; }
-    .candidate-line { font-size: 12px; color: var(--gray); }
-    .vote-bar { height: 6px; background: #e2e8f0; border-radius: 3px; margin-top: 8px; overflow: hidden; }
-    .vote-bar-fill { height: 100%; background: var(--gradient); transition: width 0.3s; }
-    .candidate-links { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
-    .candidate-links a { font-size: 11px; color: var(--primary); text-decoration: none; padding: 4px 8px; background: white; border-radius: 6px; border: 1px solid #e2e8f0; }
-    .map-card { border-radius: 16px; overflow: hidden; margin-bottom: 16px; }
-    #map { height: 250px; width: 100%; }
-    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 12px; }
-    .status-waiting { background: #fef3c7; color: #b45309; }
-    .status-ready { background: #d1fae5; color: #065f46; }
-</style>
 <script>
 const firebaseConfig = {
     apiKey: "AIzaSyCxj6Qxk6PkL9WhbIQZh_wCwlhZBdY8MrQ",
@@ -144,8 +136,8 @@ let groupData = null;
 let myMemberId = null;
 let isAnywhere = false;
 let selectedStation = null;
+let map = null;
 
-// URLからグループID取得
 const urlParams = new URLSearchParams(window.location.search);
 groupId = urlParams.get('g');
 
@@ -173,20 +165,15 @@ async function createGroup() {
     loadGroup();
 }
 
-// 本番URL
 function getShareUrl() {
-    // 本番環境（https://で始まる）ならそのまま使う
     if (window.location.protocol === 'https:') {
         return window.location.origin + '/app.html?g=' + groupId;
     }
-    // ローカル環境の場合は本番URLを返す
     return 'https://top-bay-three.vercel.app/app.html?g=' + groupId;
 }
 
 async function loadGroup() {
     document.getElementById('shareUrl').textContent = getShareUrl();
-    
-    // リアルタイム監視
     db.collection('groups').doc(groupId).onSnapshot(doc => {
         if (doc.exists) {
             groupData = doc.data();
@@ -204,7 +191,7 @@ function renderMembers() {
     if (members.length === 0) {
         list.innerHTML = '<p style="color:#64748b;font-size:13px;text-align:center;padding:20px;">まだ誰も参加していません</p>';
     } else {
-        list.innerHTML = members.map((m, i) => `
+        list.innerHTML = members.map(m => `
             <div class="member-item">
                 <div class="member-avatar">${m.name.charAt(0)}</div>
                 <div class="member-info">
@@ -215,7 +202,6 @@ function renderMembers() {
         `).join('');
     }
     
-    // 自分が参加済みかチェック
     const savedId = localStorage.getItem('aida_member_' + groupId);
     if (savedId && members.find(m => m.id === savedId)) {
         myMemberId = savedId;
@@ -304,6 +290,7 @@ async function checkAndShowCandidates() {
     
     if (groupData.candidates && groupData.candidates.length > 0) {
         renderCandidates();
+        renderMap();
     }
 }
 
@@ -327,6 +314,38 @@ async function calculateCandidates(stationMembers) {
     } catch(e) { console.error(e); }
 }
 
+function renderMap() {
+    document.getElementById('mapCard').classList.remove('hidden');
+    const candidates = groupData.candidates || [];
+    if (candidates.length === 0) return;
+    
+    if (!map) {
+        map = L.map('map').setView([candidates[0].lat, candidates[0].lng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+    }
+    
+    // マーカーをクリア
+    map.eachLayer(layer => {
+        if (layer instanceof L.Marker) map.removeLayer(layer);
+    });
+    
+    // 候補駅にマーカー
+    candidates.forEach((c, i) => {
+        const icon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div style="background:${i===0?'#6366f1':'#8b5cf6'};color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:12px;">${i+1}</div>`,
+            iconSize: [24, 24]
+        });
+        L.marker([c.lat, c.lng], { icon }).addTo(map).bindPopup(`${c.name}駅`);
+    });
+    
+    // 全マーカーが見えるように調整
+    const bounds = L.latLngBounds(candidates.map(c => [c.lat, c.lng]));
+    map.fitBounds(bounds, { padding: [30, 30] });
+}
+
 function renderCandidates() {
     document.getElementById('candidatesCard').classList.remove('hidden');
     const candidates = groupData.candidates || [];
@@ -340,18 +359,20 @@ function renderCandidates() {
         const pct = Math.round((voteCount / totalVotes) * 100);
         const isVoted = myVote === c.name;
         return `
-            <div class="candidate-card ${isVoted ? 'voted' : ''}" onclick="vote('${c.name}')">
+            <div class="candidate-card ${isVoted ? 'voted' : ''}">
                 <div class="candidate-header">
-                    <span class="candidate-name">${c.name}駅</span>
+                    <span class="candidate-name">${i+1}. ${c.name}駅</span>
                     ${i === 0 ? '<span class="candidate-badge badge-recommend">おすすめ</span>' : ''}
                     ${voteCount > 0 ? `<span class="candidate-badge badge-votes">${voteCount}票</span>` : ''}
                 </div>
                 <div class="candidate-line">${c.line || ''}</div>
+                <button class="vote-btn ${isVoted ? 'voted' : ''}" onclick="vote('${c.name}')">
+                    ${isVoted ? '🗳️ 投票を取り消す' : '🗳️ この駅に投票'}
+                </button>
                 ${totalVotes > 1 ? `<div class="vote-bar"><div class="vote-bar-fill" style="width:${pct}%"></div></div>` : ''}
                 <div class="candidate-links">
-                    <a href="https://tabelog.com/rstLst/?vs=1&sa=${encodeURIComponent(c.name + '駅')}&sk=${encodeURIComponent(c.name)}" target="_blank">🍺 食べログで${c.name}駅周辺を探す</a>
-                    <a href="https://www.hotpepper.jp/CSP/psh/freeword_search/freeword_search.do?FWT=${encodeURIComponent(c.name + '駅')}" target="_blank">🍴 ホットペッパー</a>
-                    <a href="https://www.google.com/maps/search/居酒屋/@${c.lat},${c.lng},16z" target="_blank">🗺️ Googleマップ</a>
+                    <a href="https://www.google.com/search?q=${encodeURIComponent(c.name + '駅 居酒屋 食べログ')}" target="_blank" onclick="event.stopPropagation()">🍺 食べログで${c.name}駅周辺を探す</a>
+                    <a href="https://www.google.com/maps/search/居酒屋/@${c.lat},${c.lng},16z" target="_blank" onclick="event.stopPropagation()">🗺️ Googleマップで居酒屋を探す</a>
                 </div>
             </div>
         `;
@@ -360,13 +381,24 @@ function renderCandidates() {
 
 async function vote(stationName) {
     const myVote = localStorage.getItem('aida_vote_' + groupId);
-    if (myVote) { alert('すでに投票済みです'); return; }
-    
     const votes = { ...groupData.votes };
-    votes[stationName] = (votes[stationName] || 0) + 1;
+    
+    if (myVote === stationName) {
+        // 同じ駅をクリック → 投票取り消し
+        votes[stationName] = Math.max(0, (votes[stationName] || 0) - 1);
+        localStorage.removeItem('aida_vote_' + groupId);
+    } else if (myVote) {
+        // 別の駅に変更
+        votes[myVote] = Math.max(0, (votes[myVote] || 0) - 1);
+        votes[stationName] = (votes[stationName] || 0) + 1;
+        localStorage.setItem('aida_vote_' + groupId, stationName);
+    } else {
+        // 新規投票
+        votes[stationName] = (votes[stationName] || 0) + 1;
+        localStorage.setItem('aida_vote_' + groupId, stationName);
+    }
     
     await db.collection('groups').doc(groupId).update({ votes });
-    localStorage.setItem('aida_vote_' + groupId, stationName);
 }
 
 function copyUrl() {
