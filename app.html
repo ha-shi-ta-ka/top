@@ -124,6 +124,9 @@
                 <input type="text" id="nickname" placeholder="ニックネーム" 
                     class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg mb-4 transition-colors">
                 
+                <p class="text-sm font-bold text-slate-700 mb-2">🚉 あなたの出発駅（最寄り駅）</p>
+                <p class="text-xs text-slate-400 mb-3">※ここから中間地点を計算します</p>
+                
                 <label id="anywhereBtn" onclick="toggleAnywhere()" 
                     class="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border-2 border-amber-200 cursor-pointer mb-4 hover:bg-amber-100 transition-colors">
                     <div id="checkboxIcon" class="w-6 h-6 rounded-md border-2 border-amber-400 flex items-center justify-center text-white text-sm font-bold"></div>
@@ -131,7 +134,7 @@
                 </label>
                 
                 <div id="stationWrapper" class="relative mb-4">
-                    <input type="text" id="stationInput" placeholder="最寄り駅を入力..." 
+                    <input type="text" id="stationInput" placeholder="出発駅を入力（例: 渋谷、新宿...）" 
                         oninput="searchStation()" onfocus="searchStation()"
                         class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg transition-colors">
                     <div id="suggestions" class="suggestions"></div>
@@ -407,6 +410,10 @@ function shareToFacebook() {
 
 function shareToInstagram() {
     navigator.clipboard.writeText(getShareUrl());
-    alert('URLをコピーしました！\nInstagramのストーリーやDMに貼り付けてください。');
+    // InstagramアプリのDMを開く（モバイルのみ）
+    window.location.href = 'instagram://direct-inbox';
+    setTimeout(() => {
+        alert('URLをコピーしました！\nInstagramのDMに貼り付けてください。');
+    }, 500);
 }
 </script>
