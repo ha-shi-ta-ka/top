@@ -81,12 +81,14 @@
                 </div>
                 <button onclick="joinGroup()" class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">参加する →</button>
             </div>
-            <!-- 寄せる機能 -->
+            <!-- 候補の調整 -->
             <div id="biasCard" class="hidden glass-card p-6">
                 <h2 class="text-sm font-bold text-slate-500 mb-4">🎯 候補の調整</h2>
-                <p class="text-xs text-slate-400 mb-3">特定の人に寄せたり、密集度を考慮できます</p>
-                <div class="flex flex-wrap gap-2 mb-4" id="biasMemberList"></div>
-                <button onclick="calculateWithDensity()" class="w-full py-3 rounded-xl bg-purple-500 text-white font-bold hover:opacity-90">📊 密集度を考慮して再計算</button>
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <button onclick="calculateNormal()" class="py-3 rounded-xl bg-indigo-500 text-white font-bold hover:opacity-90">📍 ノーマル</button>
+                    <button onclick="showBiasList()" id="biasToggleBtn" class="py-3 rounded-xl bg-slate-200 text-slate-700 font-bold hover:bg-slate-300">👤 誰かに寄せる</button>
+                </div>
+                <div id="biasMemberList" class="hidden flex-wrap gap-2"></div>
             </div>
             <div id="mapCard" class="hidden glass-card p-6">
                 <h2 class="text-sm font-bold text-slate-500 mb-4">🗺️ 候補エリア</h2>
@@ -94,8 +96,17 @@
             </div>
             <div id="candidatesCard" class="hidden glass-card p-6">
                 <h2 class="text-sm font-bold text-slate-500 mb-4">🗳️ 候補に投票しよう</h2>
-                <p class="text-xs text-slate-400 mb-4">タップで投票・もう一度タップで取り消し</p>
+                <p class="text-xs text-slate-400 mb-4">複数投票OK！タップで投票・もう一度タップで取り消し</p>
                 <div id="candidateList" class="space-y-4"></div>
+            </div>
+            <!-- 投票ランキング -->
+            <div id="rankingCard" class="hidden glass-card p-6">
+                <h2 class="text-sm font-bold text-slate-500 mb-4">🏆 投票ランキング</h2>
+                <div id="rankingList" class="space-y-3"></div>
+                <div id="votersList" class="mt-4 pt-4 border-t border-slate-200">
+                    <h3 class="text-xs font-bold text-slate-400 mb-2">投票状況</h3>
+                    <div id="votersDetail" class="text-sm text-slate-600"></div>
+                </div>
             </div>
         </div>
     </main>
@@ -115,6 +126,9 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 let groupId = null, groupData = null, myMemberId = null, isAnywhere = false, selectedStation = null, map = null, lastMemberCount = 0;
+
+// 主要ターミナル・繁華街駅リスト
+const busyStations = ['渋谷','新宿','池袋','東京','品川','上野','秋葉原','有楽町','銀座','六本木','恵比寿','目黒','五反田','大崎','新橋','浜松町','田町','高田馬場','中野','吉祥寺','立川','町田','横浜','川崎','大宮','千葉','船橋','柏','北千住','赤羽','蒲田','自由が丘','下北沢','三軒茶屋','中目黒','代官山','表参道','原宿','代々木','御茶ノ水','神田','日本橋','門前仲町','錦糸町','押上','浅草','巣鴨','大塚','駒込','王子','十条','板橋','練馬','荻窪','阿佐ヶ谷','高円寺','西荻窪','三鷹','武蔵境','国分寺','八王子','調布','府中','聖蹟桜ヶ丘','多摩センター','溝の口','武蔵小杉','日吉','菊名','新横浜','戸塚','藤沢','大船','鎌倉','茅ヶ崎','平塚','小田原','海老名','本厚木','相模大野','登戸','向ヶ丘遊園','稲田堤','南武線','浦和','川口','草加','越谷','春日部','久喜','熊谷','所沢','川越','志木','朝霞台','和光市','成増','光が丘','石神井公園','大泉学園','ひばりヶ丘','清瀬','東村山','小平','国立','日野','豊田','高尾','橋本','相模原','淵野辺','古淵','南町田','長津田','青葉台','たまプラーザ','あざみ野','センター北','センター南','新百合ヶ丘','読売ランド前','生田','百合ヶ丘','柿生','鶴川','玉川学園前','成瀬','つくし野','すずかけ台','南町田グランベリーパーク','中央林間','大和','瀬谷','三ツ境','二俣川','鶴ヶ峰','西谷','上大岡','金沢文庫','金沢八景','逗子','葉山','久里浜','横須賀中央','汐入','追浜','能見台','杉田','磯子','根岸','山手','石川町','関内','桜木町','みなとみらい','馬車道','日本大通り','元町・中華街'];
 
 const urlParams = new URLSearchParams(window.location.search);
 groupId = urlParams.get('g');
@@ -177,10 +191,16 @@ function renderBiasOptions() {
     if (stationMembers.length < 2) { document.getElementById('biasCard').classList.add('hidden'); return; }
     document.getElementById('biasCard').classList.remove('hidden');
     document.getElementById('biasMemberList').innerHTML = stationMembers.map(m => `
-        <button onclick="biasToMember('${m.id}')" class="px-4 py-2 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm hover:bg-indigo-200 transition-colors">
-            ${m.name}さんに寄せる
+        <button onclick="biasToMember('${m.id}')" class="px-4 py-2 rounded-full bg-pink-100 text-pink-700 font-bold text-sm hover:bg-pink-200 transition-colors">
+            ${m.name}さん
         </button>
     `).join('');
+}
+
+function showBiasList() {
+    const list = document.getElementById('biasMemberList');
+    list.classList.toggle('hidden');
+    list.classList.toggle('flex');
 }
 
 async function biasToMember(memberId) {
@@ -191,39 +211,78 @@ async function biasToMember(memberId) {
         const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${target.lng}&y=${target.lat}`);
         const data = await res.json();
         if (data.response?.station) {
-            let candidates = [...new Map(data.response.station.slice(0, 10).map(c => [c.name, c])).values()].slice(0, 5);
-            candidates = candidates.map(c => ({ name: c.name, lat: parseFloat(c.y), lng: parseFloat(c.x), line: c.line }));
-            const votes = {}; candidates.forEach(c => votes[c.name] = 0);
-            await db.collection('groups').doc(groupId).update({ candidates, votes });
+            let stations = [...new Map(data.response.station.slice(0, 20).map(c => [c.name, c])).values()];
+            let candidates = stations.slice(0, 5).map(c => ({ name: c.name, lat: parseFloat(c.y), lng: parseFloat(c.x), line: c.line, type: `${target.name}さん周辺` }));
+            await db.collection('groups').doc(groupId).update({ candidates });
         }
     } catch(e) { console.error(e); }
 }
 
-async function calculateWithDensity() {
+// ノーマル計算：4種類の候補を出す
+async function calculateNormal() {
     const members = groupData.members || [];
     const stationMembers = members.filter(m => !m.anywhere && m.lat && m.lng);
     if (stationMembers.length < 2) return;
-    // 密集度を考慮：同じ駅の人が多いほど重みを増やす
+    
+    // 1. 純粋な重心
+    const avgLat = stationMembers.reduce((s, m) => s + m.lat, 0) / stationMembers.length;
+    const avgLng = stationMembers.reduce((s, m) => s + m.lng, 0) / stationMembers.length;
+    
+    // 2. 密集度考慮の重心
     const stationCount = {};
     stationMembers.forEach(m => { stationCount[m.station] = (stationCount[m.station] || 0) + 1; });
     let totalLat = 0, totalLng = 0, totalWeight = 0;
     stationMembers.forEach(m => {
-        const weight = stationCount[m.station]; // 同じ駅の人数分の重み
+        const weight = stationCount[m.station];
         totalLat += m.lat * weight;
         totalLng += m.lng * weight;
         totalWeight += weight;
     });
-    const avgLat = totalLat / totalWeight;
-    const avgLng = totalLng / totalWeight;
+    const densityLat = totalLat / totalWeight;
+    const densityLng = totalLng / totalWeight;
+    
     try {
-        const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${avgLng}&y=${avgLat}`);
-        const data = await res.json();
-        if (data.response?.station) {
-            let candidates = [...new Map(data.response.station.slice(0, 10).map(c => [c.name, c])).values()].slice(0, 5);
-            candidates = candidates.map(c => ({ name: c.name, lat: parseFloat(c.y), lng: parseFloat(c.x), line: c.line }));
-            const votes = {}; candidates.forEach(c => votes[c.name] = 0);
-            await db.collection('groups').doc(groupId).update({ candidates, votes });
+        // 重心周辺の駅を取得
+        const res1 = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${avgLng}&y=${avgLat}`);
+        const data1 = await res1.json();
+        
+        // 密集度重心周辺の駅を取得
+        const res2 = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${densityLng}&y=${densityLat}`);
+        const data2 = await res2.json();
+        
+        const candidates = [];
+        
+        if (data1.response?.station) {
+            const stations1 = [...new Map(data1.response.station.slice(0, 10).map(c => [c.name, c])).values()];
+            // 1. 重心に近い駅
+            if (stations1[0]) candidates.push({ name: stations1[0].name, lat: parseFloat(stations1[0].y), lng: parseFloat(stations1[0].x), line: stations1[0].line, type: '📍 重心' });
+            // 2. 重心近くの主要駅
+            const busy1 = stations1.find(s => busyStations.includes(s.name));
+            if (busy1 && busy1.name !== stations1[0]?.name) candidates.push({ name: busy1.name, lat: parseFloat(busy1.y), lng: parseFloat(busy1.x), line: busy1.line, type: '🏙️ 重心近くの主要駅' });
         }
+        
+        if (data2.response?.station) {
+            const stations2 = [...new Map(data2.response.station.slice(0, 10).map(c => [c.name, c])).values()];
+            // 3. 密集度考慮の駅
+            const density = stations2[0];
+            if (density && !candidates.find(c => c.name === density.name)) candidates.push({ name: density.name, lat: parseFloat(density.y), lng: parseFloat(density.x), line: density.line, type: '📊 密集度考慮' });
+            // 4. 密集度近くの主要駅
+            const busy2 = stations2.find(s => busyStations.includes(s.name));
+            if (busy2 && !candidates.find(c => c.name === busy2.name)) candidates.push({ name: busy2.name, lat: parseFloat(busy2.y), lng: parseFloat(busy2.x), line: busy2.line, type: '🏙️ 密集度近くの主要駅' });
+        }
+        
+        // 足りなければ重心周辺から追加
+        if (candidates.length < 4 && data1.response?.station) {
+            const stations1 = [...new Map(data1.response.station.slice(0, 10).map(c => [c.name, c])).values()];
+            for (const s of stations1) {
+                if (candidates.length >= 5) break;
+                if (!candidates.find(c => c.name === s.name)) {
+                    candidates.push({ name: s.name, lat: parseFloat(s.y), lng: parseFloat(s.x), line: s.line, type: '📍 周辺' });
+                }
+            }
+        }
+        
+        await db.collection('groups').doc(groupId).update({ candidates: candidates.slice(0, 5) });
     } catch(e) { console.error(e); }
 }
 
@@ -289,18 +348,8 @@ async function checkAndShowCandidates() {
 }
 
 async function calculateCandidates(stationMembers) {
-    const avgLat = stationMembers.reduce((s, m) => s + m.lat, 0) / stationMembers.length;
-    const avgLng = stationMembers.reduce((s, m) => s + m.lng, 0) / stationMembers.length;
-    try {
-        const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${avgLng}&y=${avgLat}`);
-        const data = await res.json();
-        if (data.response?.station) {
-            let candidates = [...new Map(data.response.station.slice(0, 10).map(c => [c.name, c])).values()].slice(0, 5);
-            candidates = candidates.map(c => ({ name: c.name, lat: parseFloat(c.y), lng: parseFloat(c.x), line: c.line }));
-            const votes = {}; candidates.forEach(c => votes[c.name] = 0);
-            await db.collection('groups').doc(groupId).update({ candidates, votes });
-        }
-    } catch(e) { console.error(e); }
+    // 初回はノーマル計算を実行
+    await calculateNormal();
 }
 
 function renderMap() {
@@ -319,15 +368,25 @@ function renderMap() {
 function renderCandidates() {
     document.getElementById('candidatesCard').classList.remove('hidden');
     const candidates = groupData.candidates || [];
-    const votes = groupData.votes || {};
-    const totalVotes = Object.values(votes).reduce((a, b) => a + b, 0) || 1;
-    const myVote = localStorage.getItem('aida_vote_' + groupId);
+    const memberVotes = groupData.memberVotes || {}; // { memberId: [station1, station2, ...] }
+    
+    // 各駅の投票数を集計
+    const voteCounts = {};
+    candidates.forEach(c => voteCounts[c.name] = 0);
+    Object.values(memberVotes).forEach(votes => {
+        votes.forEach(station => {
+            if (voteCounts[station] !== undefined) voteCounts[station]++;
+        });
+    });
+    
+    const totalVotes = Object.values(voteCounts).reduce((a, b) => a + b, 0) || 1;
+    const myVotes = memberVotes[myMemberId] || [];
     const myStation = getMyStation();
     
     document.getElementById('candidateList').innerHTML = candidates.map((c, i) => {
-        const voteCount = votes[c.name] || 0;
+        const voteCount = voteCounts[c.name] || 0;
         const pct = Math.round((voteCount / totalVotes) * 100);
-        const isVoted = myVote === c.name;
+        const isVoted = myVotes.includes(c.name);
         const navitimeUrl = myStation ? `https://www.navitime.co.jp/transfer/searchlist?orvStationName=${encodeURIComponent(myStation)}&dnvStationName=${encodeURIComponent(c.name)}` : '';
         return `
             <div class="p-5 rounded-2xl ${isVoted ? 'bg-green-50 border-2 border-green-400' : 'bg-white/60 border-2 border-transparent'} transition-all cursor-pointer hover:shadow-lg" onclick="vote('${c.name}')">
@@ -341,7 +400,8 @@ function renderCandidates() {
                         ${voteCount > 0 ? `<span class="px-3 py-1 rounded-full bg-blue-100 text-blue-600 text-xs font-bold">${voteCount}票</span>` : ''}
                     </div>
                 </div>
-                <p class="text-sm text-slate-500 mb-3">${c.line || ''}</p>
+                <p class="text-sm text-slate-500 mb-1">${c.line || ''}</p>
+                ${c.type ? `<p class="text-xs text-indigo-500 font-bold mb-3">${c.type}</p>` : '<div class="mb-3"></div>'}
                 <div class="flex items-center gap-3 mb-4">
                     <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all" style="width:${pct}%"></div></div>
                     <span class="text-sm font-bold text-slate-500">${pct}%</span>
@@ -354,15 +414,69 @@ function renderCandidates() {
             </div>
         `;
     }).join('');
+    
+    // ランキング表示
+    renderRanking(candidates, voteCounts, memberVotes);
+}
+
+function renderRanking(candidates, voteCounts, memberVotes) {
+    const members = groupData.members || [];
+    const hasVotes = Object.values(voteCounts).some(v => v > 0);
+    
+    if (!hasVotes) {
+        document.getElementById('rankingCard').classList.add('hidden');
+        return;
+    }
+    
+    document.getElementById('rankingCard').classList.remove('hidden');
+    
+    // 投票数でソート
+    const sorted = candidates.map(c => ({ name: c.name, votes: voteCounts[c.name] || 0 }))
+        .sort((a, b) => b.votes - a.votes);
+    
+    document.getElementById('rankingList').innerHTML = sorted.map((s, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+        const barWidth = sorted[0].votes > 0 ? Math.round((s.votes / sorted[0].votes) * 100) : 0;
+        return `
+            <div class="flex items-center gap-3">
+                <span class="text-xl w-8">${medal}</span>
+                <span class="font-bold flex-1">${s.name}駅</span>
+                <div class="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-indigo-500 to-pink-500" style="width:${barWidth}%"></div>
+                </div>
+                <span class="text-sm font-bold text-slate-600 w-12 text-right">${s.votes}票</span>
+            </div>
+        `;
+    }).join('');
+    
+    // 誰がどこに投票したか表示
+    const voterDetails = [];
+    members.forEach(m => {
+        const votes = memberVotes[m.id] || [];
+        if (votes.length > 0) {
+            voterDetails.push(`<span class="font-bold">${m.name}</span>: ${votes.map(v => v + '駅').join(', ')}`);
+        }
+    });
+    document.getElementById('votersDetail').innerHTML = voterDetails.length > 0 
+        ? voterDetails.join('<br>') 
+        : '<span class="text-slate-400">まだ投票がありません</span>';
 }
 
 async function vote(stationName) {
-    const myVote = localStorage.getItem('aida_vote_' + groupId);
-    const votes = { ...groupData.votes };
-    if (myVote === stationName) { votes[stationName] = Math.max(0, (votes[stationName] || 0) - 1); localStorage.removeItem('aida_vote_' + groupId); }
-    else if (myVote) { votes[myVote] = Math.max(0, (votes[myVote] || 0) - 1); votes[stationName] = (votes[stationName] || 0) + 1; localStorage.setItem('aida_vote_' + groupId, stationName); }
-    else { votes[stationName] = (votes[stationName] || 0) + 1; localStorage.setItem('aida_vote_' + groupId, stationName); }
-    await db.collection('groups').doc(groupId).update({ votes });
+    if (!myMemberId) { alert('先に参加してください'); return; }
+    
+    const memberVotes = { ...(groupData.memberVotes || {}) };
+    const myVotes = memberVotes[myMemberId] || [];
+    
+    if (myVotes.includes(stationName)) {
+        // 既に投票済み → 取り消し
+        memberVotes[myMemberId] = myVotes.filter(v => v !== stationName);
+    } else {
+        // 新規投票（複数可）
+        memberVotes[myMemberId] = [...myVotes, stationName];
+    }
+    
+    await db.collection('groups').doc(groupId).update({ memberVotes });
 }
 
 function copyUrl() { navigator.clipboard.writeText(getShareUrl()); alert('URLをコピーしました！'); }
