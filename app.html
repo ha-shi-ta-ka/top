@@ -4,118 +4,159 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aida - グループ</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans JP"', 'sans-serif'],
+                        heading: ['"Outfit"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        :root { --primary: #6366f1; --secondary: #8b5cf6; --gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); --dark: #1e1b4b; --light: #f8fafc; --gray: #64748b; --success: #10b981; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Noto Sans JP', sans-serif; background: var(--light); min-height: 100vh; }
-        .header { background: var(--gradient); color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-size: 20px; font-weight: 900; }
-        .header-link { color: white; text-decoration: none; font-size: 13px; opacity: 0.9; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-bottom: 16px; }
-        .card-title { font-size: 14px; font-weight: 700; color: var(--gray); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-        .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-        .btn-primary { background: var(--gradient); color: white; }
-        .btn-primary:hover { box-shadow: 0 8px 25px rgba(99,102,241,0.3); }
-        .btn-secondary { background: #f1f5f9; color: var(--dark); }
-        .btn-success { background: var(--success); color: white; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .input { width: 100%; padding: 12px 14px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 15px; margin-bottom: 12px; }
-        .input:focus { outline: none; border-color: var(--primary); }
-        .member-list { margin-bottom: 16px; }
-        .member-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f8fafc; border-radius: 10px; margin-bottom: 8px; }
-        .member-avatar { width: 36px; height: 36px; background: var(--gradient); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
-        .member-info { flex: 1; }
-        .member-name { font-weight: 600; font-size: 14px; }
-        .member-station { font-size: 12px; color: var(--gray); }
-        .suggestions { background: white; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); max-height: 200px; overflow-y: auto; display: none; position: absolute; left: 0; right: 0; z-index: 9999; }
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        }
+        .suggestions { 
+            position: absolute; left: 0; right: 0; z-index: 9999; 
+            background: white; border-radius: 12px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
+            max-height: 200px; overflow-y: auto; display: none; 
+        }
         .suggestions.show { display: block; }
-        .suggestion-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
-        .suggestion-item:hover { background: #f8fafc; }
-        .suggestion-line { font-size: 11px; color: var(--gray); }
-        .input-wrapper { position: relative; }
-        .anywhere-btn { display: flex; align-items: center; gap: 8px; padding: 12px; background: #fef3c7; border: 2px solid #fcd34d; border-radius: 10px; cursor: pointer; margin-bottom: 12px; }
-        .anywhere-btn.selected { background: #fde68a; }
-        .anywhere-btn input { display: none; }
-        .checkbox { width: 20px; height: 20px; border: 2px solid #f59e0b; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
-        .anywhere-btn.selected .checkbox { background: #f59e0b; color: white; }
-        .share-box { background: #f1f5f9; border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-        .share-url { flex: 1; font-size: 13px; color: var(--dark); word-break: break-all; }
-        .copy-btn { padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
-        .hidden { display: none !important; }
-        #map { height: 200px; width: 100%; border-radius: 12px; margin-bottom: 16px; }
-        .candidate-card { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 12px; transition: all 0.2s; }
-        .candidate-card.voted { border-color: var(--success); background: #ecfdf5; }
-        .candidate-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .candidate-name { font-size: 16px; font-weight: 700; }
-        .candidate-badge { font-size: 11px; padding: 3px 8px; border-radius: 20px; font-weight: 600; }
-        .badge-recommend { background: var(--gradient); color: white; }
-        .badge-votes { background: #dbeafe; color: #1d4ed8; }
-        .candidate-line { font-size: 12px; color: var(--gray); margin-bottom: 8px; }
-        .vote-btn { display: inline-block; padding: 10px 20px; background: var(--gradient); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
-        .vote-btn.voted { background: #ef4444; }
-        .vote-bar { height: 6px; background: #e2e8f0; border-radius: 3px; margin-bottom: 12px; overflow: hidden; }
-        .vote-bar-fill { height: 100%; background: var(--gradient); transition: width 0.3s; }
-        .candidate-links { display: flex; flex-direction: column; gap: 8px; }
-        .candidate-links a { display: block; padding: 12px 16px; background: white; color: var(--dark); text-decoration: none; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 14px; font-weight: 600; text-align: center; }
-        .candidate-links a:hover { background: #f1f5f9; }
+        #map { height: 200px; border-radius: 12px; }
     </style>
 </head>
-<body>
-    <div class="header">
-        <div class="logo">Aida</div>
-        <a href="index.html" class="header-link">トップへ</a>
+<body class="font-sans bg-slate-50 text-slate-900 min-h-screen">
+    <!-- Background -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden">
+        <div class="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-500/20 rounded-full blur-[100px]"></div>
+        <div class="absolute bottom-[-20%] left-[-10%] w-[400px] h-[400px] bg-pink-500/20 rounded-full blur-[100px]"></div>
     </div>
-    <div class="container">
+
+    <!-- Header -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass border-b border-white/20 px-6 py-4">
+        <div class="max-w-2xl mx-auto flex justify-between items-center">
+            <a href="index.html" class="text-2xl font-black tracking-tighter bg-gradient-to-r from-indigo-500 to-pink-500 bg-clip-text text-transparent font-heading">Aida</a>
+            <a href="index.html" class="text-sm text-slate-500 hover:text-indigo-500 transition-colors">トップへ</a>
+        </div>
+    </nav>
+
+    <main class="relative z-10 max-w-2xl mx-auto px-4 pt-24 pb-12">
+        <!-- 新規作成画面 -->
         <div id="createView">
-            <div class="card">
-                <div class="card-title">🎉 新しいグループを作成</div>
-                <input type="text" class="input" id="groupName" placeholder="グループ名（例: 忘年会2025）">
-                <button class="btn btn-primary" onclick="createGroup()">グループを作成</button>
+            <div class="glass-card p-8">
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white text-3xl mb-4">🎉</div>
+                    <h1 class="text-2xl font-black text-slate-900 font-heading">新しいグループを作成</h1>
+                    <p class="text-slate-500 mt-2">待ち合わせ場所をみんなで決めよう</p>
+                </div>
+                <input type="text" id="groupName" placeholder="グループ名（例: 忘年会2025）" 
+                    class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg mb-4 transition-colors">
+                <button onclick="createGroup()" 
+                    class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">
+                    グループを作成 →
+                </button>
             </div>
         </div>
-        <div id="groupView" class="hidden">
-            <div class="card">
-                <div class="card-title">📤 このURLを共有</div>
-                <div class="share-box">
-                    <div class="share-url" id="shareUrl"></div>
-                    <button class="copy-btn" onclick="copyUrl()">コピー</button>
+
+        <!-- グループ画面 -->
+        <div id="groupView" class="hidden space-y-6">
+            <!-- URL共有 -->
+            <div class="glass-card p-6">
+                <h2 class="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">📤 このURLを共有</h2>
+                <div class="bg-slate-100 rounded-xl p-4 mb-4">
+                    <p id="shareUrl" class="text-sm text-slate-700 break-all font-mono"></p>
                 </div>
-                <button class="btn btn-success" onclick="shareToLine()">📱 LINEで送る</button>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <button onclick="copyUrl()" class="py-3 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-colors">
+                        📋 コピー
+                    </button>
+                    <button onclick="shareToLine()" class="py-3 rounded-xl bg-[#06C755] text-white font-bold hover:opacity-90 transition-opacity">
+                        💬 LINE
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="shareToFacebook()" class="py-3 rounded-xl bg-[#1877F2] text-white font-bold hover:opacity-90 transition-opacity">
+                        📘 Facebook
+                    </button>
+                    <button onclick="shareToInstagram()" class="py-3 rounded-xl bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] text-white font-bold hover:opacity-90 transition-opacity">
+                        📷 Instagram
+                    </button>
+                </div>
             </div>
-            <div class="card">
-                <div class="card-title">👥 メンバー（<span id="memberCount">0</span>人）</div>
-                <div class="member-list" id="memberList"></div>
-                <button class="btn btn-primary" id="joinBtn" onclick="showJoinForm()">✋ 自分も参加する</button>
+
+            <!-- メンバー -->
+            <div class="glass-card p-6">
+                <h2 class="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">👥 メンバー（<span id="memberCount">0</span>人）</h2>
+                <div id="memberList" class="space-y-3 mb-4"></div>
+                <button id="joinBtn" onclick="showJoinForm()" 
+                    class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">
+                    ✋ 自分も参加する
+                </button>
             </div>
-            <div class="card hidden" id="joinForm">
-                <div class="card-title">🙋 参加情報を入力</div>
-                <input type="text" class="input" id="nickname" placeholder="ニックネーム">
-                <label class="anywhere-btn" id="anywhereBtn" onclick="toggleAnywhere()">
-                    <div class="checkbox">✓</div>
-                    <span>どこでもOK（駅を指定しない）</span>
+
+            <!-- 参加フォーム -->
+            <div id="joinForm" class="hidden glass-card p-6">
+                <h2 class="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">🙋 参加情報を入力</h2>
+                <input type="text" id="nickname" placeholder="ニックネーム" 
+                    class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg mb-4 transition-colors">
+                
+                <label id="anywhereBtn" onclick="toggleAnywhere()" 
+                    class="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border-2 border-amber-200 cursor-pointer mb-4 hover:bg-amber-100 transition-colors">
+                    <div id="checkboxIcon" class="w-6 h-6 rounded-md border-2 border-amber-400 flex items-center justify-center text-white text-sm font-bold"></div>
+                    <span class="font-bold text-amber-700">どこでもOK（駅を指定しない）</span>
                 </label>
-                <div class="input-wrapper" id="stationWrapper">
-                    <input type="text" class="input" id="stationInput" placeholder="最寄り駅を入力..." oninput="searchStation()" onfocus="searchStation()">
-                    <div class="suggestions" id="suggestions"></div>
+                
+                <div id="stationWrapper" class="relative mb-4">
+                    <input type="text" id="stationInput" placeholder="最寄り駅を入力..." 
+                        oninput="searchStation()" onfocus="searchStation()"
+                        class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg transition-colors">
+                    <div id="suggestions" class="suggestions"></div>
                 </div>
-                <button class="btn btn-primary" onclick="joinGroup()">参加する</button>
+                
+                <button onclick="joinGroup()" 
+                    class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">
+                    参加する →
+                </button>
             </div>
-            <div class="card hidden" id="mapCard">
-                <div class="card-title">🗺️ 候補エリア</div>
+
+            <!-- 地図 -->
+            <div id="mapCard" class="hidden glass-card p-6">
+                <h2 class="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">🗺️ 候補エリア</h2>
                 <div id="map"></div>
             </div>
-            <div class="card hidden" id="candidatesCard">
-                <div class="card-title">🗳️ 候補に投票しよう（タップで投票/取消）</div>
-                <div id="candidateList"></div>
+
+            <!-- 候補 -->
+            <div id="candidatesCard" class="hidden glass-card p-6">
+                <h2 class="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">🗳️ 候補に投票しよう</h2>
+                <p class="text-xs text-slate-400 mb-4">タップで投票・もう一度タップで取り消し</p>
+                <div id="candidateList" class="space-y-4"></div>
             </div>
         </div>
-    </div>
+    </main>
 </body>
 </html>
 
@@ -131,12 +172,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-let groupId = null;
-let groupData = null;
-let myMemberId = null;
-let isAnywhere = false;
-let selectedStation = null;
-let map = null;
+let groupId = null, groupData = null, myMemberId = null, isAnywhere = false, selectedStation = null, map = null;
 
 const urlParams = new URLSearchParams(window.location.search);
 groupId = urlParams.get('g');
@@ -145,17 +181,12 @@ if (groupId) {
     document.getElementById('createView').classList.add('hidden');
     document.getElementById('groupView').classList.remove('hidden');
     loadGroup();
-} else {
-    document.getElementById('createView').classList.remove('hidden');
 }
 
 async function createGroup() {
     const name = document.getElementById('groupName').value.trim() || '新しいグループ';
     const docRef = await db.collection('groups').add({
-        name: name,
-        members: [],
-        candidates: [],
-        votes: {},
+        name, members: [], candidates: [], votes: {},
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     groupId = docRef.id;
@@ -166,20 +197,14 @@ async function createGroup() {
 }
 
 function getShareUrl() {
-    if (window.location.protocol === 'https:') {
-        return window.location.origin + '/app.html?g=' + groupId;
-    }
+    if (window.location.protocol === 'https:') return window.location.origin + '/app.html?g=' + groupId;
     return 'https://top-bay-three.vercel.app/app.html?g=' + groupId;
 }
 
 async function loadGroup() {
     document.getElementById('shareUrl').textContent = getShareUrl();
     db.collection('groups').doc(groupId).onSnapshot(doc => {
-        if (doc.exists) {
-            groupData = doc.data();
-            renderMembers();
-            checkAndShowCandidates();
-        }
+        if (doc.exists) { groupData = doc.data(); renderMembers(); checkAndShowCandidates(); }
     });
 }
 
@@ -189,14 +214,14 @@ function renderMembers() {
     document.getElementById('memberCount').textContent = members.length;
     
     if (members.length === 0) {
-        list.innerHTML = '<p style="color:#64748b;font-size:13px;text-align:center;padding:20px;">まだ誰も参加していません</p>';
+        list.innerHTML = '<p class="text-center text-slate-400 py-8">まだ誰も参加していません</p>';
     } else {
         list.innerHTML = members.map(m => `
-            <div class="member-item">
-                <div class="member-avatar">${m.name.charAt(0)}</div>
-                <div class="member-info">
-                    <div class="member-name">${m.name}</div>
-                    <div class="member-station">${m.anywhere ? '🌍 どこでもOK' : '🚉 ' + m.station + '駅'}</div>
+            <div class="flex items-center gap-4 p-4 bg-white/50 rounded-xl">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">${m.name.charAt(0)}</div>
+                <div>
+                    <p class="font-bold text-slate-900">${m.name}</p>
+                    <p class="text-sm text-slate-500">${m.anywhere ? '🌍 どこでもOK' : '🚉 ' + m.station + '駅'}</p>
                 </div>
             </div>
         `).join('');
@@ -217,8 +242,21 @@ function showJoinForm() {
 
 function toggleAnywhere() {
     isAnywhere = !isAnywhere;
-    document.getElementById('anywhereBtn').classList.toggle('selected', isAnywhere);
-    document.getElementById('stationWrapper').classList.toggle('hidden', isAnywhere);
+    const checkbox = document.getElementById('checkboxIcon');
+    const wrapper = document.getElementById('stationWrapper');
+    const btn = document.getElementById('anywhereBtn');
+    
+    if (isAnywhere) {
+        checkbox.innerHTML = '✓';
+        checkbox.classList.add('bg-amber-400');
+        wrapper.classList.add('hidden');
+        btn.classList.add('bg-amber-100', 'border-amber-400');
+    } else {
+        checkbox.innerHTML = '';
+        checkbox.classList.remove('bg-amber-400');
+        wrapper.classList.remove('hidden');
+        btn.classList.remove('bg-amber-100', 'border-amber-400');
+    }
 }
 
 let searchTimeout = null;
@@ -228,7 +266,7 @@ function searchStation() {
     if (query.length < 1) { suggestionsDiv.classList.remove('show'); return; }
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(async () => {
-        suggestionsDiv.innerHTML = '<div style="padding:10px;color:#64748b;">検索中...</div>';
+        suggestionsDiv.innerHTML = '<div class="p-4 text-slate-400">検索中...</div>';
         suggestionsDiv.classList.add('show');
         try {
             const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&name=${encodeURIComponent(query)}`);
@@ -236,13 +274,13 @@ function searchStation() {
             if (data.response?.station) {
                 const unique = [...new Map(data.response.station.map(s => [s.name + s.line, s])).values()];
                 suggestionsDiv.innerHTML = unique.slice(0, 8).map(s => `
-                    <div class="suggestion-item" onclick="selectStation('${s.name}',${s.y},${s.x},'${s.line}')">
-                        <div>${s.name}駅</div>
-                        <div class="suggestion-line">${s.line}（${s.prefecture}）</div>
+                    <div class="p-4 hover:bg-slate-50 cursor-pointer border-b border-slate-100" onclick="selectStation('${s.name}',${s.y},${s.x},'${s.line}')">
+                        <p class="font-bold">${s.name}駅</p>
+                        <p class="text-sm text-slate-500">${s.line}（${s.prefecture}）</p>
                     </div>
                 `).join('');
-            } else { suggestionsDiv.innerHTML = '<div style="padding:10px;color:#64748b;">見つかりません</div>'; }
-        } catch(e) { suggestionsDiv.innerHTML = '<div style="padding:10px;color:#ef4444;">エラー</div>'; }
+            } else { suggestionsDiv.innerHTML = '<div class="p-4 text-slate-400">見つかりません</div>'; }
+        } catch(e) { suggestionsDiv.innerHTML = '<div class="p-4 text-red-500">エラー</div>'; }
     }, 300);
 }
 
@@ -253,7 +291,7 @@ function selectStation(name, lat, lng, line) {
 }
 
 document.addEventListener('click', e => {
-    if (!e.target.closest('.input-wrapper')) document.getElementById('suggestions').classList.remove('show');
+    if (!e.target.closest('#stationWrapper')) document.getElementById('suggestions').classList.remove('show');
 });
 
 async function joinGroup() {
@@ -262,19 +300,9 @@ async function joinGroup() {
     if (!isAnywhere && !selectedStation) { alert('駅を選択するか「どこでもOK」を選んでください'); return; }
     
     const memberId = 'member_' + Date.now();
-    const member = {
-        id: memberId,
-        name: name,
-        anywhere: isAnywhere,
-        station: isAnywhere ? null : selectedStation.name,
-        lat: isAnywhere ? null : selectedStation.lat,
-        lng: isAnywhere ? null : selectedStation.lng
-    };
+    const member = { id: memberId, name, anywhere: isAnywhere, station: isAnywhere ? null : selectedStation.name, lat: isAnywhere ? null : selectedStation.lat, lng: isAnywhere ? null : selectedStation.lng };
     
-    await db.collection('groups').doc(groupId).update({
-        members: firebase.firestore.FieldValue.arrayUnion(member)
-    });
-    
+    await db.collection('groups').doc(groupId).update({ members: firebase.firestore.FieldValue.arrayUnion(member) });
     myMemberId = memberId;
     localStorage.setItem('aida_member_' + groupId, memberId);
     document.getElementById('joinForm').classList.add('hidden');
@@ -283,32 +311,20 @@ async function joinGroup() {
 async function checkAndShowCandidates() {
     const members = groupData.members || [];
     const stationMembers = members.filter(m => !m.anywhere && m.lat && m.lng);
-    
-    if (stationMembers.length >= 2 && (!groupData.candidates || groupData.candidates.length === 0)) {
-        await calculateCandidates(stationMembers);
-    }
-    
-    if (groupData.candidates && groupData.candidates.length > 0) {
-        renderCandidates();
-        renderMap();
-    }
+    if (stationMembers.length >= 2 && (!groupData.candidates || groupData.candidates.length === 0)) await calculateCandidates(stationMembers);
+    if (groupData.candidates && groupData.candidates.length > 0) { renderCandidates(); renderMap(); }
 }
 
 async function calculateCandidates(stationMembers) {
     const avgLat = stationMembers.reduce((s, m) => s + m.lat, 0) / stationMembers.length;
     const avgLng = stationMembers.reduce((s, m) => s + m.lng, 0) / stationMembers.length;
-    
     try {
         const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${avgLng}&y=${avgLat}`);
         const data = await res.json();
         if (data.response?.station) {
-            let candidates = data.response.station.slice(0, 8);
-            candidates = [...new Map(candidates.map(c => [c.name, c])).values()].slice(0, 5);
+            let candidates = [...new Map(data.response.station.slice(0, 8).map(c => [c.name, c])).values()].slice(0, 5);
             candidates = candidates.map(c => ({ name: c.name, lat: parseFloat(c.y), lng: parseFloat(c.x), line: c.line }));
-            
-            const votes = {};
-            candidates.forEach(c => votes[c.name] = 0);
-            
+            const votes = {}; candidates.forEach(c => votes[c.name] = 0);
             await db.collection('groups').doc(groupId).update({ candidates, votes });
         }
     } catch(e) { console.error(e); }
@@ -318,32 +334,16 @@ function renderMap() {
     document.getElementById('mapCard').classList.remove('hidden');
     const candidates = groupData.candidates || [];
     if (candidates.length === 0) return;
-    
     if (!map) {
         map = L.map('map').setView([candidates[0].lat, candidates[0].lng], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
     }
-    
-    // マーカーをクリア
-    map.eachLayer(layer => {
-        if (layer instanceof L.Marker) map.removeLayer(layer);
-    });
-    
-    // 候補駅にマーカー
+    map.eachLayer(layer => { if (layer instanceof L.Marker) map.removeLayer(layer); });
     candidates.forEach((c, i) => {
-        const icon = L.divIcon({
-            className: 'custom-marker',
-            html: `<div style="background:${i===0?'#6366f1':'#8b5cf6'};color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:12px;">${i+1}</div>`,
-            iconSize: [24, 24]
-        });
+        const icon = L.divIcon({ className: '', html: `<div style="background:linear-gradient(135deg,#6366f1,#ec4899);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">${i+1}</div>`, iconSize: [28, 28] });
         L.marker([c.lat, c.lng], { icon }).addTo(map).bindPopup(`${c.name}駅`);
     });
-    
-    // 全マーカーが見えるように調整
-    const bounds = L.latLngBounds(candidates.map(c => [c.lat, c.lng]));
-    map.fitBounds(bounds, { padding: [30, 30] });
+    map.fitBounds(L.latLngBounds(candidates.map(c => [c.lat, c.lng])), { padding: [30, 30] });
 }
 
 function renderCandidates() {
@@ -353,26 +353,32 @@ function renderCandidates() {
     const totalVotes = Object.values(votes).reduce((a, b) => a + b, 0) || 1;
     const myVote = localStorage.getItem('aida_vote_' + groupId);
     
-    const list = document.getElementById('candidateList');
-    list.innerHTML = candidates.map((c, i) => {
+    document.getElementById('candidateList').innerHTML = candidates.map((c, i) => {
         const voteCount = votes[c.name] || 0;
         const pct = Math.round((voteCount / totalVotes) * 100);
         const isVoted = myVote === c.name;
         return `
-            <div class="candidate-card ${isVoted ? 'voted' : ''}">
-                <div class="candidate-header">
-                    <span class="candidate-name">${i+1}. ${c.name}駅</span>
-                    ${i === 0 ? '<span class="candidate-badge badge-recommend">おすすめ</span>' : ''}
-                    ${voteCount > 0 ? `<span class="candidate-badge badge-votes">${voteCount}票</span>` : ''}
+            <div class="p-5 rounded-2xl ${isVoted ? 'bg-green-50 border-2 border-green-400' : 'bg-white/60 border-2 border-transparent'} transition-all cursor-pointer hover:shadow-lg" onclick="vote('${c.name}')">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-3">
+                        <span class="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500 text-white flex items-center justify-center font-bold text-sm">${i+1}</span>
+                        <span class="font-bold text-lg">${c.name}駅</span>
+                    </div>
+                    <div class="flex gap-2">
+                        ${i === 0 ? '<span class="px-3 py-1 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500 text-white text-xs font-bold">おすすめ</span>' : ''}
+                        ${voteCount > 0 ? `<span class="px-3 py-1 rounded-full bg-blue-100 text-blue-600 text-xs font-bold">${voteCount}票</span>` : ''}
+                    </div>
                 </div>
-                <div class="candidate-line">${c.line || ''}</div>
-                <button class="vote-btn ${isVoted ? 'voted' : ''}" onclick="vote('${c.name}')">
-                    ${isVoted ? '🗳️ 投票を取り消す' : '🗳️ この駅に投票'}
-                </button>
-                ${totalVotes > 1 ? `<div class="vote-bar"><div class="vote-bar-fill" style="width:${pct}%"></div></div>` : ''}
-                <div class="candidate-links">
-                    <a href="https://www.google.com/search?q=${encodeURIComponent(c.name + '駅 居酒屋 食べログ')}" target="_blank" onclick="event.stopPropagation()">🍺 食べログで${c.name}駅周辺を探す</a>
-                    <a href="https://www.google.com/maps/search/居酒屋/@${c.lat},${c.lng},16z" target="_blank" onclick="event.stopPropagation()">🗺️ Googleマップで居酒屋を探す</a>
+                <p class="text-sm text-slate-500 mb-3">${c.line || ''}</p>
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all" style="width:${pct}%"></div>
+                    </div>
+                    <span class="text-sm font-bold text-slate-500">${pct}%</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <a href="https://www.google.com/search?q=${encodeURIComponent(c.name + '駅 居酒屋 食べログ')}" target="_blank" onclick="event.stopPropagation()" class="py-3 rounded-xl bg-orange-500 text-white text-center font-bold text-sm hover:opacity-90">🍺 食べログ</a>
+                    <a href="https://www.google.com/maps/search/居酒屋/@${c.lat},${c.lng},16z" target="_blank" onclick="event.stopPropagation()" class="py-3 rounded-xl bg-blue-500 text-white text-center font-bold text-sm hover:opacity-90">🗺️ マップ</a>
                 </div>
             </div>
         `;
@@ -382,33 +388,25 @@ function renderCandidates() {
 async function vote(stationName) {
     const myVote = localStorage.getItem('aida_vote_' + groupId);
     const votes = { ...groupData.votes };
-    
-    if (myVote === stationName) {
-        // 同じ駅をクリック → 投票取り消し
-        votes[stationName] = Math.max(0, (votes[stationName] || 0) - 1);
-        localStorage.removeItem('aida_vote_' + groupId);
-    } else if (myVote) {
-        // 別の駅に変更
-        votes[myVote] = Math.max(0, (votes[myVote] || 0) - 1);
-        votes[stationName] = (votes[stationName] || 0) + 1;
-        localStorage.setItem('aida_vote_' + groupId, stationName);
-    } else {
-        // 新規投票
-        votes[stationName] = (votes[stationName] || 0) + 1;
-        localStorage.setItem('aida_vote_' + groupId, stationName);
-    }
-    
+    if (myVote === stationName) { votes[stationName] = Math.max(0, (votes[stationName] || 0) - 1); localStorage.removeItem('aida_vote_' + groupId); }
+    else if (myVote) { votes[myVote] = Math.max(0, (votes[myVote] || 0) - 1); votes[stationName] = (votes[stationName] || 0) + 1; localStorage.setItem('aida_vote_' + groupId, stationName); }
+    else { votes[stationName] = (votes[stationName] || 0) + 1; localStorage.setItem('aida_vote_' + groupId, stationName); }
     await db.collection('groups').doc(groupId).update({ votes });
 }
 
-function copyUrl() {
-    navigator.clipboard.writeText(getShareUrl());
-    alert('URLをコピーしました！');
-}
+function copyUrl() { navigator.clipboard.writeText(getShareUrl()); alert('URLをコピーしました！'); }
 
 function shareToLine() {
     const name = groupData?.name || 'グループ';
-    const text = `【${name}】の待ち合わせ場所を決めよう！\n\nAidaで中間地点を探して投票👇`;
-    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text + '\n' + getShareUrl())}`, '_blank');
+    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(`【${name}】の待ち合わせ場所を決めよう！\n\n${getShareUrl()}`)}`, '_blank');
+}
+
+function shareToFacebook() {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getShareUrl())}`, '_blank', 'width=600,height=400');
+}
+
+function shareToInstagram() {
+    navigator.clipboard.writeText(getShareUrl());
+    alert('URLをコピーしました！\nInstagramのストーリーやDMに貼り付けてください。');
 }
 </script>
