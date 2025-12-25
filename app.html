@@ -113,7 +113,7 @@
             <div id="normalSection" class="hidden space-y-4">
                 <div class="glass-card p-6">
                     <h2 class="text-lg font-black text-slate-900 mb-2">📍 ノーマル候補</h2>
-                    <p class="text-xs text-slate-400 mb-4">重心・密集度・主要駅を考慮した候補</p>
+                    <p class="text-xs text-slate-400 mb-4">重心・密集度・主要駅を考慮した4つの候補</p>
                     <div id="normalMap" class="map-container mb-4"></div>
                     <div id="normalCandidates" class="space-y-3"></div>
                 </div>
@@ -246,10 +246,19 @@ async function calculateAndRenderNormal(stationMembers) {
     const avgLat = stationMembers.reduce((s, m) => s + m.lat, 0) / stationMembers.length;
     const avgLng = stationMembers.reduce((s, m) => s + m.lng, 0) / stationMembers.length;
     
-    const stationCount = {};
-    stationMembers.forEach(m => { stationCount[m.station] = (stationCount[m.station] || 0) + 1; });
+    // 密集度計算: 各メンバーの近くに何人いるかで重み付け（50km以内の人数）
+    const getDistKm = (m1, m2) => Math.sqrt(Math.pow((m1.lat - m2.lat) * 111, 2) + Math.pow((m1.lng - m2.lng) * 91, 2));
+    const nearbyCount = stationMembers.map(m => {
+        return stationMembers.filter(other => other.id !== m.id && getDistKm(m, other) <= 50).length;
+    });
+    // 重み = 近くにいる人数 + 1（自分）
     let totalLat = 0, totalLng = 0, totalWeight = 0;
-    stationMembers.forEach(m => { const w = stationCount[m.station]; totalLat += m.lat * w; totalLng += m.lng * w; totalWeight += w; });
+    stationMembers.forEach((m, i) => { 
+        const w = nearbyCount[i] + 1; 
+        totalLat += m.lat * w; 
+        totalLng += m.lng * w; 
+        totalWeight += w; 
+    });
     const densityLat = totalLat / totalWeight, densityLng = totalLng / totalWeight;
     
     // 全国の主要駅（人口が多いエリアの駅）
@@ -422,10 +431,25 @@ async function calculateAndRenderNormal(stationMembers) {
         const busy2 = stations2.find(s => busyStations.includes(s.name) && !usedNames.has(s.name));
         if (busy2) { candidates.push({ name: busy2.name, lat: parseFloat(busy2.y), lng: parseFloat(busy2.x), line: busy2.line, type: '🏙️ 密集度近くの主要駅' }); usedNames.add(busy2.name); }
         
-        // 4つに満たない場合追加
+        // 4つに満たない場合、重心・密集度周辺の駅から追加
         for (const s of [...stations1, ...stations2]) {
             if (candidates.length >= 4) break;
             if (!usedNames.has(s.name)) { candidates.push({ name: s.name, lat: parseFloat(s.y), lng: parseFloat(s.x), line: s.line, type: '📍 周辺駅' }); usedNames.add(s.name); }
+        }
+        
+        // それでも4つに満たない場合、主要駅リストから近い順に追加
+        if (candidates.length < 4) {
+            const majorStationsNearby = majorStations.map(st => ({
+                ...st,
+                distKm: Math.sqrt(Math.pow((st.lat - avgLat) * 111, 2) + Math.pow((st.lng - avgLng) * 91, 2))
+            })).sort((a, b) => a.distKm - b.distKm);
+            for (const st of majorStationsNearby) {
+                if (candidates.length >= 4) break;
+                if (!usedNames.has(st.name)) {
+                    candidates.push({ name: st.name, lat: st.lat, lng: st.lng, line: '主要ターミナル', type: '🏙️ 近くの主要駅' });
+                    usedNames.add(st.name);
+                }
+            }
         }
         
         normalCandidates = candidates.slice(0, 4);
