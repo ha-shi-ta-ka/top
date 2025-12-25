@@ -298,6 +298,12 @@ document.addEventListener('click', e => {
 });
 
 async function joinGroup() {
+    const members = groupData.members || [];
+    if (members.length >= 20) {
+        alert('メンバーは最大20人までです');
+        return;
+    }
+    
     const name = document.getElementById('nickname').value.trim();
     if (!name) { alert('ニックネームを入力してください'); return; }
     if (!isAnywhere && !selectedStation) { alert('駅を選択するか「どこでもOK」を選んでください'); return; }
@@ -311,11 +317,22 @@ async function joinGroup() {
     document.getElementById('joinForm').classList.add('hidden');
 }
 
+let lastMemberCount = 0;
+
 async function checkAndShowCandidates() {
     const members = groupData.members || [];
     const stationMembers = members.filter(m => !m.anywhere && m.lat && m.lng);
-    if (stationMembers.length >= 2 && (!groupData.candidates || groupData.candidates.length === 0)) await calculateCandidates(stationMembers);
-    if (groupData.candidates && groupData.candidates.length > 0) { renderCandidates(); renderMap(); }
+    
+    // メンバー数が変わったら候補を再計算
+    if (stationMembers.length >= 2 && stationMembers.length !== lastMemberCount) {
+        lastMemberCount = stationMembers.length;
+        await calculateCandidates(stationMembers);
+    }
+    
+    if (groupData.candidates && groupData.candidates.length > 0) { 
+        renderCandidates(); 
+        renderMap(); 
+    }
 }
 
 async function calculateCandidates(stationMembers) {
@@ -325,7 +342,7 @@ async function calculateCandidates(stationMembers) {
         const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${avgLng}&y=${avgLat}`);
         const data = await res.json();
         if (data.response?.station) {
-            let candidates = [...new Map(data.response.station.slice(0, 8).map(c => [c.name, c])).values()].slice(0, 5);
+            let candidates = [...new Map(data.response.station.slice(0, 10).map(c => [c.name, c])).values()].slice(0, 5);
             candidates = candidates.map(c => ({ name: c.name, lat: parseFloat(c.y), lng: parseFloat(c.x), line: c.line }));
             const votes = {}; candidates.forEach(c => votes[c.name] = 0);
             await db.collection('groups').doc(groupId).update({ candidates, votes });
