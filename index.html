@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aida - みんなの間で会おう</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans JP"', 'sans-serif'],
+                        heading: ['"Outfit"', 'sans-serif'],
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 1rem;
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        .aurora-bg {
+            background: radial-gradient(at 0% 0%, hsla(253,16%,7%,0.1) 0, transparent 50%),
+                        radial-gradient(at 50% 0%, hsla(225,39%,30%,0.1) 0, transparent 50%),
+                        radial-gradient(at 100% 0%, hsla(339,49%,30%,0.1) 0, transparent 50%);
+        }
+        html { scroll-behavior: smooth; }
+    </style>
+</head>
+<body class="font-sans bg-slate-50 text-slate-900 overflow-x-hidden">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass border-b border-white/20 px-6 py-4">
+        <div class="container mx-auto flex justify-between items-center max-w-7xl">
+            <div class="text-2xl font-black tracking-tighter bg-gradient-to-r from-indigo-500 to-pink-500 bg-clip-text text-transparent font-heading">Aida</div>
+            <a href="app.html" class="bg-slate-900 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:shadow-xl hover:bg-slate-800 transition-all text-sm">グループを作る</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+        <div class="absolute inset-0 aurora-bg opacity-30 pointer-events-none"></div>
+        <div class="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-500/20 rounded-full blur-[100px] animate-float pointer-events-none"></div>
+        <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-pink-500/20 rounded-full blur-[100px] animate-float pointer-events-none" style="animation-delay: 1s;"></div>
+        
+        <div class="container mx-auto relative z-10 grid lg:grid-cols-2 gap-12 items-center px-4 max-w-7xl">
+            <div class="text-center lg:text-left" data-aos="fade-up" data-aos-duration="1000">
+                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-white/40 mb-6 shadow-sm">
+                    <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                    <span class="text-sm font-medium text-slate-500">登録不要・完全無料</span>
+                </div>
+                <h1 class="text-5xl lg:text-7xl font-black leading-[1.1] mb-6 font-heading text-slate-900">
+                    みんなの<br />
+                    <span class="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">間</span>で会おう
+                </h1>
+                <p class="text-lg lg:text-xl text-slate-500 mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                    飲み会の集合場所、誰かの最寄り駅に偏りがち問題を解決。<br />中間地点を計算して、投票で民主的に決めよう。
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="app.html" class="bg-gradient-to-r from-indigo-500 to-pink-500 text-white rounded-full text-lg px-8 h-14 shadow-xl shadow-indigo-500/25 hover:scale-105 transition-transform font-bold flex items-center justify-center gap-2">
+                        🚀 今すぐ始める
+                    </a>
+                    <a href="#steps" class="glass border border-white/50 text-slate-700 rounded-full text-lg px-8 h-14 hover:bg-white/40 transition-colors font-bold flex items-center justify-center">
+                        詳しく見る
+                    </a>
+                </div>
+            </div>
+            <div class="relative" data-aos="fade-up" data-aos-duration="1000" data-aos-delay="200">
+                <div class="relative z-10 rounded-3xl overflow-hidden shadow-2xl border-4 border-white/20 glass-card p-2 bg-white/30">
+                    <img src="https://images.unsplash.com/photo-1511632765486-a01980e01a18?q=80&w=2070&auto=format&fit=crop" alt="Friends meeting" class="rounded-2xl w-full h-auto object-cover aspect-[4/3]"/>
+                    <div class="absolute -bottom-6 -left-6 glass p-4 rounded-2xl shadow-xl border border-white/40 flex items-center gap-3 animate-float" style="animation-duration: 5s;">
+                        <div class="bg-green-100 p-2 rounded-full">✅</div>
+                        <div>
+                            <p class="text-xs text-slate-500 font-bold">決定！</p>
+                            <p class="text-sm font-bold text-slate-900">渋谷駅周辺</p>
+                        </div>
+                    </div>
+                    <div class="absolute -top-6 -right-6 glass p-4 rounded-2xl shadow-xl border border-white/40 animate-float" style="animation-duration: 6s; animation-delay: 1s;">
+                        <div class="flex -space-x-2 justify-center">
+                            <div class="w-8 h-8 rounded-full bg-indigo-400 border-2 border-white"></div>
+                            <div class="w-8 h-8 rounded-full bg-purple-400 border-2 border-white"></div>
+                            <div class="w-8 h-8 rounded-full bg-pink-400 border-2 border-white"></div>
+                        </div>
+                        <p class="text-xs font-bold text-center mt-2 text-slate-500">3人が投票済</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Steps Section -->
+    <section id="steps" class="py-24 relative">
+        <div class="container mx-auto px-4 max-w-7xl">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <h2 class="text-3xl lg:text-4xl font-black mb-4 font-heading text-slate-900">使い方はカンタン</h2>
+                <p class="text-slate-500 text-lg">たった3ステップで待ち合わせ場所が決まる</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="glass-card p-8 relative overflow-hidden group" data-aos="fade-up" data-aos-delay="0">
+                    <div class="absolute top-0 right-0 p-4 text-6xl font-black opacity-5 text-blue-500 font-heading">01</div>
+                    <div class="w-14 h-14 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 text-2xl">👥</div>
+                    <h3 class="text-xl font-bold mb-3 text-slate-900">グループを作成</h3>
+                    <p class="text-slate-500 leading-relaxed">URLを作ってLINEで共有するだけ。登録は不要です。</p>
+                </div>
+                <div class="glass-card p-8 relative overflow-hidden group" data-aos="fade-up" data-aos-delay="100">
+                    <div class="absolute top-0 right-0 p-4 text-6xl font-black opacity-5 text-purple-500 font-heading">02</div>
+                    <div class="w-14 h-14 rounded-2xl bg-purple-50 text-purple-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 text-2xl">📍</div>
+                    <h3 class="text-xl font-bold mb-3 text-slate-900">みんなが駅を入力</h3>
+                    <p class="text-slate-500 leading-relaxed">それぞれの最寄り駅を入力。どこでもOKも選べます。</p>
+                </div>
+                <div class="glass-card p-8 relative overflow-hidden group" data-aos="fade-up" data-aos-delay="200">
+                    <div class="absolute top-0 right-0 p-4 text-6xl font-black opacity-5 text-pink-500 font-heading">03</div>
+                    <div class="w-14 h-14 rounded-2xl bg-pink-50 text-pink-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 text-2xl">🗳️</div>
+                    <h3 class="text-xl font-bold mb-3 text-slate-900">候補に投票</h3>
+                    <p class="text-slate-500 leading-relaxed">AIが計算した中間地点から、みんなで投票して決定。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Feature Section -->
+    <section class="py-24 bg-gradient-to-b from-transparent to-white/50">
+        <div class="container mx-auto px-4 max-w-7xl">
+            <div class="grid lg:grid-cols-2 gap-16 items-center">
+                <div data-aos="fade-right">
+                    <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=2074&auto=format&fit=crop" alt="Map Feature" class="w-full h-auto rounded-3xl shadow-2xl border border-white/40 glass-card hover:scale-[1.02] transition-transform duration-500"/>
+                </div>
+                <div class="space-y-8" data-aos="fade-left">
+                    <div>
+                        <h2 class="text-3xl lg:text-4xl font-black mb-6 font-heading text-slate-900">
+                            公平で、<br /><span class="text-indigo-500">納得感のある</span>場所選び
+                        </h2>
+                        <p class="text-lg text-slate-500 leading-relaxed">「いつも私が遠くまで行ってる気がする...」そんなモヤモヤを解消します。Aidaは全員の移動時間を考慮して、最も公平な中間地点を提案します。</p>
+                    </div>
+                    <div class="grid gap-6">
+                        <div class="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/40 transition-colors">
+                            <div class="w-12 h-12 flex-shrink-0 bg-indigo-100 rounded-xl flex items-center justify-center text-xl">🔗</div>
+                            <div>
+                                <h3 class="font-bold text-lg mb-1 text-slate-900">URL共有だけでOK</h3>
+                                <p class="text-slate-500 text-sm">アプリのインストールも、アカウント登録も不要です。</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/40 transition-colors">
+                            <div class="w-12 h-12 flex-shrink-0 bg-purple-100 rounded-xl flex items-center justify-center text-xl">🛡️</div>
+                            <div>
+                                <h3 class="font-bold text-lg mb-1 text-slate-900">プライバシー配慮</h3>
+                                <p class="text-slate-500 text-sm">最寄り駅を知られたくない場合は「どこでもOK」を選択可能。</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/40 transition-colors">
+                            <div class="w-12 h-12 flex-shrink-0 bg-pink-100 rounded-xl flex items-center justify-center text-xl">🍺</div>
+                            <div>
+                                <h3 class="font-bold text-lg mb-1 text-slate-900">お店も一緒に探せる</h3>
+                                <p class="text-slate-500 text-sm">場所が決まったら、そのまま周辺の人気店を検索。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-32 relative overflow-hidden">
+        <div class="absolute inset-0 bg-indigo-500/5 pointer-events-none"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-r from-indigo-500/20 to-pink-500/20 rounded-full blur-[120px] pointer-events-none"></div>
+        <div class="container mx-auto relative z-10 text-center max-w-2xl px-4" data-aos="zoom-in">
+            <h2 class="text-4xl lg:text-5xl font-black mb-6 font-heading text-slate-900">さあ、間で会おう</h2>
+            <p class="text-xl text-slate-500 mb-10">次回の飲み会、ミーティング、デート。<br />場所決めのストレスから解放されましょう。</p>
+            <a href="app.html" class="inline-flex items-center justify-center bg-gradient-to-r from-indigo-500 to-pink-500 text-white rounded-full text-xl px-10 h-16 shadow-2xl shadow-indigo-500/30 hover:scale-105 transition-transform font-bold">
+                🚀 グループを作成する
+            </a>
+            <p class="mt-6 text-sm text-slate-500">完全無料・登録不要・30秒で完了</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 border-t border-white/20 glass bg-white/30">
+        <div class="container mx-auto text-center px-4">
+            <div class="text-2xl font-black tracking-tighter bg-gradient-to-r from-indigo-500 to-pink-500 bg-clip-text text-transparent font-heading mb-6 inline-block">Aida</div>
+            <div class="flex justify-center gap-8 mb-8 text-sm font-medium text-slate-500">
+                <a href="#steps" class="hover:text-indigo-500 transition-colors">使い方</a>
+                <a href="#" class="hover:text-indigo-500 transition-colors">よくある質問</a>
+                <a href="#" class="hover:text-indigo-500 transition-colors">利用規約</a>
+                <a href="#" class="hover:text-indigo-500 transition-colors">プライバシー</a>
+            </div>
+            <p class="text-xs text-slate-500/60">© 2025 Aida. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({
+            once: true,
+            offset: 50,
+            duration: 800,
+            easing: 'ease-out-cubic',
+        });
+    </script>
+</body>
+</html>
