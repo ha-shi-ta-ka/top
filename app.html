@@ -81,14 +81,17 @@
                 </div>
                 <button onclick="joinGroup()" class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">参加する →</button>
             </div>
-            <!-- 候補の調整 -->
+            <!-- ノーマル候補 -->
+            <div id="normalCard" class="hidden glass-card p-6">
+                <h2 class="text-sm font-bold text-slate-500 mb-4">📍 ノーマル候補</h2>
+                <p class="text-xs text-slate-400 mb-3">重心・密集度・主要駅を考慮した候補</p>
+                <button onclick="calculateNormal()" class="w-full py-3 rounded-xl bg-indigo-500 text-white font-bold hover:opacity-90">🔄 再計算</button>
+            </div>
+            <!-- 誰かに寄せる -->
             <div id="biasCard" class="hidden glass-card p-6">
-                <h2 class="text-sm font-bold text-slate-500 mb-4">🎯 候補の調整</h2>
-                <div class="grid grid-cols-2 gap-2 mb-4">
-                    <button onclick="calculateNormal()" class="py-3 rounded-xl bg-indigo-500 text-white font-bold hover:opacity-90">📍 ノーマル</button>
-                    <button onclick="showBiasList()" id="biasToggleBtn" class="py-3 rounded-xl bg-slate-200 text-slate-700 font-bold hover:bg-slate-300">👤 誰かに寄せる</button>
-                </div>
-                <div id="biasMemberList" class="hidden flex-wrap gap-2"></div>
+                <h2 class="text-sm font-bold text-slate-500 mb-4">👤 誰かに寄せる</h2>
+                <p class="text-xs text-slate-400 mb-3">特定の人の近くの駅を候補にする</p>
+                <div id="biasMemberList" class="flex flex-wrap gap-2"></div>
             </div>
             <div id="mapCard" class="hidden glass-card p-6">
                 <h2 class="text-sm font-bold text-slate-500 mb-4">🗺️ 候補エリア</h2>
@@ -188,19 +191,18 @@ function renderMembers() {
 function renderBiasOptions() {
     const members = groupData.members || [];
     const stationMembers = members.filter(m => !m.anywhere && m.station);
-    if (stationMembers.length < 2) { document.getElementById('biasCard').classList.add('hidden'); return; }
+    if (stationMembers.length < 2) { 
+        document.getElementById('biasCard').classList.add('hidden'); 
+        document.getElementById('normalCard').classList.add('hidden');
+        return; 
+    }
     document.getElementById('biasCard').classList.remove('hidden');
+    document.getElementById('normalCard').classList.remove('hidden');
     document.getElementById('biasMemberList').innerHTML = stationMembers.map(m => `
         <button onclick="biasToMember('${m.id}')" class="px-4 py-2 rounded-full bg-pink-100 text-pink-700 font-bold text-sm hover:bg-pink-200 transition-colors">
             ${m.name}さん
         </button>
     `).join('');
-}
-
-function showBiasList() {
-    const list = document.getElementById('biasMemberList');
-    list.classList.toggle('hidden');
-    list.classList.toggle('flex');
 }
 
 async function biasToMember(memberId) {
@@ -251,38 +253,55 @@ async function calculateNormal() {
         const data2 = await res2.json();
         
         const candidates = [];
+        const usedNames = new Set();
         
-        if (data1.response?.station) {
-            const stations1 = [...new Map(data1.response.station.slice(0, 10).map(c => [c.name, c])).values()];
-            // 1. 重心に近い駅
-            if (stations1[0]) candidates.push({ name: stations1[0].name, lat: parseFloat(stations1[0].y), lng: parseFloat(stations1[0].x), line: stations1[0].line, type: '📍 重心' });
-            // 2. 重心近くの主要駅
-            const busy1 = stations1.find(s => busyStations.includes(s.name));
-            if (busy1 && busy1.name !== stations1[0]?.name) candidates.push({ name: busy1.name, lat: parseFloat(busy1.y), lng: parseFloat(busy1.x), line: busy1.line, type: '🏙️ 重心近くの主要駅' });
+        const stations1 = data1.response?.station ? [...new Map(data1.response.station.slice(0, 15).map(c => [c.name, c])).values()] : [];
+        const stations2 = data2.response?.station ? [...new Map(data2.response.station.slice(0, 15).map(c => [c.name, c])).values()] : [];
+        
+        // 1. 重心に近い駅
+        if (stations1[0]) {
+            candidates.push({ name: stations1[0].name, lat: parseFloat(stations1[0].y), lng: parseFloat(stations1[0].x), line: stations1[0].line, type: '📍 重心' });
+            usedNames.add(stations1[0].name);
         }
         
-        if (data2.response?.station) {
-            const stations2 = [...new Map(data2.response.station.slice(0, 10).map(c => [c.name, c])).values()];
-            // 3. 密集度考慮の駅
-            const density = stations2[0];
-            if (density && !candidates.find(c => c.name === density.name)) candidates.push({ name: density.name, lat: parseFloat(density.y), lng: parseFloat(density.x), line: density.line, type: '📊 密集度考慮' });
-            // 4. 密集度近くの主要駅
-            const busy2 = stations2.find(s => busyStations.includes(s.name));
-            if (busy2 && !candidates.find(c => c.name === busy2.name)) candidates.push({ name: busy2.name, lat: parseFloat(busy2.y), lng: parseFloat(busy2.x), line: busy2.line, type: '🏙️ 密集度近くの主要駅' });
+        // 2. 重心近くの主要駅
+        const busy1 = stations1.find(s => busyStations.includes(s.name) && !usedNames.has(s.name));
+        if (busy1) {
+            candidates.push({ name: busy1.name, lat: parseFloat(busy1.y), lng: parseFloat(busy1.x), line: busy1.line, type: '🏙️ 重心近くの主要駅' });
+            usedNames.add(busy1.name);
         }
         
-        // 足りなければ重心周辺から追加
-        if (candidates.length < 4 && data1.response?.station) {
-            const stations1 = [...new Map(data1.response.station.slice(0, 10).map(c => [c.name, c])).values()];
-            for (const s of stations1) {
-                if (candidates.length >= 5) break;
-                if (!candidates.find(c => c.name === s.name)) {
-                    candidates.push({ name: s.name, lat: parseFloat(s.y), lng: parseFloat(s.x), line: s.line, type: '📍 周辺' });
-                }
+        // 3. 密集度考慮の駅
+        const density = stations2.find(s => !usedNames.has(s.name));
+        if (density) {
+            candidates.push({ name: density.name, lat: parseFloat(density.y), lng: parseFloat(density.x), line: density.line, type: '📊 密集度考慮' });
+            usedNames.add(density.name);
+        }
+        
+        // 4. 密集度近くの主要駅
+        const busy2 = stations2.find(s => busyStations.includes(s.name) && !usedNames.has(s.name));
+        if (busy2) {
+            candidates.push({ name: busy2.name, lat: parseFloat(busy2.y), lng: parseFloat(busy2.x), line: busy2.line, type: '🏙️ 密集度近くの主要駅' });
+            usedNames.add(busy2.name);
+        }
+        
+        // 4つに満たない場合、周辺駅から追加
+        for (const s of stations1) {
+            if (candidates.length >= 4) break;
+            if (!usedNames.has(s.name)) {
+                candidates.push({ name: s.name, lat: parseFloat(s.y), lng: parseFloat(s.x), line: s.line, type: '📍 周辺' });
+                usedNames.add(s.name);
+            }
+        }
+        for (const s of stations2) {
+            if (candidates.length >= 4) break;
+            if (!usedNames.has(s.name)) {
+                candidates.push({ name: s.name, lat: parseFloat(s.y), lng: parseFloat(s.x), line: s.line, type: '📍 周辺' });
+                usedNames.add(s.name);
             }
         }
         
-        await db.collection('groups').doc(groupId).update({ candidates: candidates.slice(0, 5) });
+        await db.collection('groups').doc(groupId).update({ candidates: candidates.slice(0, 4) });
     } catch(e) { console.error(e); }
 }
 
@@ -421,7 +440,16 @@ function renderCandidates() {
 
 function renderRanking(candidates, voteCounts, memberVotes) {
     const members = groupData.members || [];
-    const hasVotes = Object.values(voteCounts).some(v => v > 0);
+    
+    // 全投票を集計（候補に関係なく）
+    const allVoteCounts = {};
+    Object.values(memberVotes).forEach(votes => {
+        votes.forEach(station => {
+            allVoteCounts[station] = (allVoteCounts[station] || 0) + 1;
+        });
+    });
+    
+    const hasVotes = Object.keys(allVoteCounts).length > 0;
     
     if (!hasVotes) {
         document.getElementById('rankingCard').classList.add('hidden');
@@ -430,17 +458,22 @@ function renderRanking(candidates, voteCounts, memberVotes) {
     
     document.getElementById('rankingCard').classList.remove('hidden');
     
-    // 投票数でソート
-    const sorted = candidates.map(c => ({ name: c.name, votes: voteCounts[c.name] || 0 }))
+    // 全投票をソート
+    const sorted = Object.entries(allVoteCounts)
+        .map(([name, votes]) => ({ name, votes }))
         .sort((a, b) => b.votes - a.votes);
+    
+    const maxVotes = sorted[0]?.votes || 1;
     
     document.getElementById('rankingList').innerHTML = sorted.map((s, i) => {
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-        const barWidth = sorted[0].votes > 0 ? Math.round((s.votes / sorted[0].votes) * 100) : 0;
+        const barWidth = Math.round((s.votes / maxVotes) * 100);
+        // 現在の候補に含まれているかチェック
+        const isCurrentCandidate = candidates.some(c => c.name === s.name);
         return `
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 ${isCurrentCandidate ? '' : 'opacity-50'}">
                 <span class="text-xl w-8">${medal}</span>
-                <span class="font-bold flex-1">${s.name}駅</span>
+                <span class="font-bold flex-1">${s.name}駅${isCurrentCandidate ? '' : ' <span class="text-xs text-slate-400">(過去)</span>'}</span>
                 <div class="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
                     <div class="h-full bg-gradient-to-r from-indigo-500 to-pink-500" style="width:${barWidth}%"></div>
                 </div>
