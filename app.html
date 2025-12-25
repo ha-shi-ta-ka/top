@@ -264,6 +264,13 @@ async function calculateAndRenderNormal(stationMembers) {
         const stations1 = data1.response?.station ? [...new Map(data1.response.station.slice(0, 20).map(c => [c.name, c])).values()] : [];
         const stations2 = data2.response?.station ? [...new Map(data2.response.station.slice(0, 20).map(c => [c.name, c])).values()] : [];
         
+        // 駅が見つからない場合（重心が海や山の場合）、メンバーの駅を候補にする
+        if (stations1.length === 0 && stations2.length === 0) {
+            document.getElementById('normalCandidates').innerHTML = '<p class="text-center text-slate-400 py-4">⚠️ メンバーの距離が離れすぎているため、中間地点に駅が見つかりませんでした。<br>「誰かに寄せる」から候補を選んでください。</p>';
+            normalCandidates = [];
+            return;
+        }
+        
         // 1. 重心に近い駅
         if (stations1[0]) { candidates.push({ name: stations1[0].name, lat: parseFloat(stations1[0].y), lng: parseFloat(stations1[0].x), line: stations1[0].line, type: '📍 重心に近い駅' }); usedNames.add(stations1[0].name); }
         // 2. 重心近くの主要駅
@@ -283,9 +290,16 @@ async function calculateAndRenderNormal(stationMembers) {
         }
         
         normalCandidates = candidates.slice(0, 4);
-        renderNormalMap();
-        renderNormalCandidates();
-    } catch(e) { console.error(e); }
+        if (normalCandidates.length > 0) {
+            renderNormalMap();
+            renderNormalCandidates();
+        } else {
+            document.getElementById('normalCandidates').innerHTML = '<p class="text-center text-slate-400 py-4">⚠️ 候補が見つかりませんでした</p>';
+        }
+    } catch(e) { 
+        console.error('calculateAndRenderNormal error:', e); 
+        document.getElementById('normalCandidates').innerHTML = '<p class="text-center text-red-400 py-4">⚠️ エラーが発生しました</p>';
+    }
 }
 
 function renderNormalMap() {
