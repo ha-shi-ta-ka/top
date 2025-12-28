@@ -202,63 +202,97 @@ function setupAutocomplete(id, callback) {
 /** 経路 & 終電 */
 let directionsService = null;
 
-// 緯度経度ベースで経路検索（駅名より精度が高い）
+// 2点間の直線距離を計算（km）
+function calcDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371; // 地球の半径（km）
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// 直線距離から電車での所要時間を概算（分）
+function estimateTrainTime(distanceKm) {
+    // 東京の電車は平均30-40km/h、乗り換え待ち時間を考慮して25km/hで計算
+    // 最低10分（近距離でも乗り換え等で時間がかかる）
+    const minutes = Math.max(10, Math.round(distanceKm / 25 * 60));
+    return minutes;
+}
+
+// 概算の乗り換え回数（距離ベース）
+function estimateTransfers(distanceKm) {
+    if (distanceKm < 5) return 0;
+    if (distanceKm < 15) return 1;
+    if (distanceKm < 30) return 2;
+    return 3;
+}
+
+// 緯度経度ベースで経路検索（Google API + フォールバック）
 async function getTransitInfoByCoords(originLat, originLng, destLat, destLng, isLast = false) {
-    if (typeof google === 'undefined' || !google.maps || !google.maps.DirectionsService) {
-        console.log('Google Maps API not available');
-        return null;
+    // まずGoogle Directions APIを試す
+    if (typeof google !== 'undefined' && google.maps && google.maps.DirectionsService) {
+        if (!directionsService) directionsService = new google.maps.DirectionsService();
+        
+        const googleResult = await new Promise((resolve) => {
+            const req = {
+                origin: new google.maps.LatLng(originLat, originLng),
+                destination: new google.maps.LatLng(destLat, destLng),
+                travelMode: google.maps.TravelMode.TRANSIT,
+                transitOptions: { 
+                    routingPreference: google.maps.TransitRoutePreference.FEWER_TRANSFERS,
+                    departureTime: new Date()
+                }
+            };
+            
+            if (isLast) {
+                const d = new Date();
+                d.setHours(23, 30, 0);
+                if (d < new Date()) d.setDate(d.getDate() + 1);
+                req.transitOptions.arrivalTime = d;
+                delete req.transitOptions.departureTime;
+            }
+            
+            const timeout = setTimeout(() => resolve(null), 5000);
+            
+            directionsService.route(req, (res, status) => {
+                clearTimeout(timeout);
+                if (status === 'OK' && res.routes && res.routes.length > 0) {
+                    const leg = res.routes[0].legs[0];
+                    const steps = leg.steps.filter(s => s.travel_mode === 'TRANSIT');
+                    resolve({
+                        duration: leg.duration.text,
+                        durationMin: Math.round(leg.duration.value / 60),
+                        transfers: Math.max(0, steps.length - 1),
+                        depTime: leg.departure_time ? leg.departure_time.value : null,
+                        depTimeStr: leg.departure_time ? leg.departure_time.text : null,
+                        isEstimate: false
+                    });
+                } else {
+                    resolve(null);
+                }
+            });
+        });
+        
+        if (googleResult) return googleResult;
     }
     
-    if (!directionsService) directionsService = new google.maps.DirectionsService();
+    // Google APIが失敗した場合、直線距離から概算
+    const distance = calcDistance(originLat, originLng, destLat, destLng);
+    const minutes = estimateTrainTime(distance);
+    const transfers = estimateTransfers(distance);
     
-    return new Promise((resolve) => {
-        const req = {
-            origin: new google.maps.LatLng(originLat, originLng),
-            destination: new google.maps.LatLng(destLat, destLng),
-            travelMode: google.maps.TravelMode.TRANSIT,
-            transitOptions: { 
-                routingPreference: google.maps.TransitRoutePreference.FEWER_TRANSFERS
-            }
-        };
-        
-        // 出発時刻を設定（現在時刻 or 終電検索用）
-        if (isLast) {
-            // 終電検索: 今日の23:30到着で検索
-            const d = new Date();
-            d.setHours(23, 30, 0);
-            if (d < new Date()) d.setDate(d.getDate() + 1); // 過去なら明日
-            req.transitOptions.arrivalTime = d;
-        } else {
-            // 通常検索: 現在時刻から
-            req.transitOptions.departureTime = new Date();
-        }
-        
-        const timeout = setTimeout(() => {
-            console.log('getTransitInfo timeout');
-            resolve(null);
-        }, 8000);
-        
-        directionsService.route(req, (res, status) => {
-            clearTimeout(timeout);
-            console.log('Directions API response:', status, res);
-            
-            if (status === 'OK' && res.routes && res.routes.length > 0) {
-                const leg = res.routes[0].legs[0];
-                const steps = leg.steps.filter(s => s.travel_mode === 'TRANSIT');
-                resolve({
-                    duration: leg.duration.text,
-                    durationSec: leg.duration.value,
-                    transfers: Math.max(0, steps.length - 1),
-                    depTime: leg.departure_time ? leg.departure_time.value : null,
-                    depTimeStr: leg.departure_time ? leg.departure_time.text : null,
-                    arrTimeStr: leg.arrival_time ? leg.arrival_time.text : null
-                });
-            } else { 
-                console.log('Directions API error:', status);
-                resolve(null); 
-            }
-        });
-    });
+    return {
+        duration: `約${minutes}分`,
+        durationMin: minutes,
+        transfers: transfers,
+        depTime: null,
+        depTimeStr: null,
+        isEstimate: true,
+        distance: distance.toFixed(1)
+    };
 }
 
 // 駅名から緯度経度を取得してから経路検索
@@ -411,6 +445,22 @@ function renderCards(containerId, candidates, section) {
     const me = groupData.members.find(m => m.id === myMemberId);
     const votes = groupData.memberVotes || {};
     const myVotes = votes[myMemberId] || [];
+    
+    // 開催日を取得
+    const dateStr = document.getElementById('meetDate')?.value;
+    let dateParams = '';
+    let lastTrainParams = '';
+    
+    if (dateStr) {
+        const d = new Date(dateStr);
+        const y = d.getFullYear();
+        const m = d.getMonth() + 1;
+        const day = d.getDate();
+        // 経路検索用（当日18:00出発）
+        dateParams = `&y=${y}&m=${m}&d=${day}&hh=18&m1=0&m2=0&type=1`;
+        // 終電検索用（当日23:00発で終電検索）
+        lastTrainParams = `&y=${y}&m=${m}&d=${day}&hh=23&m1=0&m2=0&type=2`;
+    }
 
     document.getElementById(containerId).innerHTML = candidates.map((c, i) => {
         const isVoted = myVotes.includes(c.name);
@@ -422,6 +472,10 @@ function renderCards(containerId, candidates, section) {
         if (me && me.lat && me.lng) {
             setTimeout(() => calculateRouteInfo(me, c, infoId, limitId), 100 * i);
         }
+        
+        // Yahoo!乗換案内URL生成
+        const routeUrl = `https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(me?.station || '')}駅&to=${encodeURIComponent(c.name)}駅${dateParams}`;
+        const lastTrainUrl = `https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(c.name)}駅&to=${encodeURIComponent(me?.station || '')}駅${lastTrainParams || '&type=2'}`;
 
         return `
             <div onclick="vote('${c.name}')" class="candidate-card p-5 rounded-[2rem] border-2 shadow-sm cursor-pointer ${isVoted ? 'bg-green-50 border-green-400' : 'bg-white border-slate-50 hover:border-slate-200'}">
@@ -439,8 +493,8 @@ function renderCards(containerId, candidates, section) {
                 <div id="${limitId}" class="text-[10px] font-black text-purple-600 bg-purple-50 p-3 rounded-2xl mb-4 hidden">
                 </div>
                 <div class="grid grid-cols-2 gap-2">
-                    <a href="https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(me?.station || '')}駅&to=${encodeURIComponent(c.name)}駅" target="_blank" onclick="event.stopPropagation()" class="py-3 bg-indigo-600 text-white text-center text-[10px] rounded-xl font-black">🚃 経路を確認</a>
-                    <a href="https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(c.name)}駅&to=${encodeURIComponent(me?.station || '')}駅&type=5" target="_blank" onclick="event.stopPropagation()" class="py-3 bg-slate-800 text-white text-center text-[10px] rounded-xl font-black">🌙 終電を確認</a>
+                    <a href="${routeUrl}" target="_blank" onclick="event.stopPropagation()" class="py-3 bg-indigo-600 text-white text-center text-[10px] rounded-xl font-black">🚃 経路を確認</a>
+                    <a href="${lastTrainUrl}" target="_blank" onclick="event.stopPropagation()" class="py-3 bg-slate-800 text-white text-center text-[10px] rounded-xl font-black">🌙 終電を確認</a>
                 </div>
                 <div class="mt-2">
                     <a href="https://www.google.com/search?q=${encodeURIComponent(c.name + '駅 居酒屋')}" target="_blank" onclick="event.stopPropagation()" class="block py-3 bg-orange-500 text-white text-center text-[10px] rounded-xl font-black">🍺 周辺のお店を探す</a>
@@ -465,28 +519,31 @@ async function calculateRouteInfo(me, candidate, infoId, limitId) {
         const route = await getTransitInfoByCoords(me.lat, me.lng, candidate.lat, candidate.lng, false);
         
         if (el && route) {
-            el.innerHTML = `<span class="text-indigo-600 font-black">あなた：</span>${route.duration} <span class="text-slate-300 mx-1">/</span> 乗換${route.transfers}回`;
+            const estimateLabel = route.isEstimate ? '<span class="text-[9px] text-orange-500 ml-1">(概算)</span>' : '';
+            el.innerHTML = `<span class="text-indigo-600 font-black">あなた：</span>${route.duration} <span class="text-slate-300 mx-1">/</span> 乗換${route.transfers}回${estimateLabel}`;
         } else if (el) {
-            el.innerHTML = '<span class="text-slate-400">経路情報を取得できませんでした（Yahoo!乗換案内で確認）</span>';
+            el.innerHTML = '<span class="text-slate-400">経路情報を取得できませんでした</span>';
         }
 
-        // 終電情報（全メンバー分）
+        // 全メンバーの所要時間を計算して、最も遠い人を表示
         const members = (groupData.members || []).filter(m => m.lat && m.lng);
         if (members.length > 0 && limitEl) {
-            const lastTrainResults = await Promise.all(
-                members.map(m => getTransitInfoByCoords(candidate.lat, candidate.lng, m.lat, m.lng, true))
+            const allRoutes = await Promise.all(
+                members.map(m => getTransitInfoByCoords(m.lat, m.lng, candidate.lat, candidate.lng, false))
             );
             
-            const validResults = lastTrainResults
-                .map((r, idx) => r && r.depTimeStr ? { ...r, member: members[idx] } : null)
+            const validRoutes = allRoutes
+                .map((r, idx) => r ? { ...r, member: members[idx] } : null)
                 .filter(r => r !== null);
             
-            if (validResults.length > 0) {
-                // 最も早い終電を見つける
-                const earliest = validResults.reduce((prev, curr) => 
-                    (prev.depTime && curr.depTime && prev.depTime < curr.depTime) ? prev : curr
+            if (validRoutes.length > 0) {
+                // 最も時間がかかる人を見つける
+                const longest = validRoutes.reduce((prev, curr) => 
+                    (curr.durationMin > prev.durationMin) ? curr : prev
                 );
-                limitEl.innerHTML = `🌙 全員リミット：<span class="text-lg">${earliest.depTimeStr}</span> <span class="font-normal opacity-60">(${earliest.member.name}さんの終電)</span>`;
+                const isEstimate = validRoutes.some(r => r.isEstimate);
+                const estimateNote = isEstimate ? ' (概算)' : '';
+                limitEl.innerHTML = `⏱️ 最も遠い人：<span class="text-base">${longest.member.name}さん ${longest.duration}</span>${estimateNote}`;
                 limitEl.classList.remove('hidden');
             }
         }
