@@ -465,13 +465,6 @@ function renderCards(containerId, candidates, section) {
     document.getElementById(containerId).innerHTML = candidates.map((c, i) => {
         const isVoted = myVotes.includes(c.name);
         const vCount = Object.values(votes).filter(v => v.includes(c.name)).length;
-        const infoId = `info-${section}-${i}`;
-        const limitId = `limit-${section}-${i}`;
-
-        // 非同期で経路情報を計算
-        if (me && me.lat && me.lng) {
-            setTimeout(() => calculateRouteInfo(me, c, infoId, limitId), 100 * i);
-        }
         
         // Yahoo!乗換案内URL生成
         const routeUrl = `https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(me?.station || '')}駅&to=${encodeURIComponent(c.name)}駅${dateParams}`;
@@ -486,12 +479,7 @@ function renderCards(containerId, candidates, section) {
                     </div>
                     ${vCount > 0 ? `<span class="px-3 py-1 bg-indigo-600 text-white text-[10px] rounded-full font-black shadow-sm">${vCount} 票</span>` : ''}
                 </div>
-                <p class="text-[10px] font-bold text-slate-400 mb-3 ml-10">${c.line}</p>
-                <div id="${infoId}" class="text-[11px] font-bold text-slate-500 mb-2 px-1">
-                    ${me ? '<span class="text-slate-400">🔄 経路を計算中...</span>' : '<span class="text-slate-400">参加すると経路が表示されます</span>'}
-                </div>
-                <div id="${limitId}" class="text-[10px] font-black text-purple-600 bg-purple-50 p-3 rounded-2xl mb-4 hidden">
-                </div>
+                <p class="text-[10px] font-bold text-slate-400 mb-4 ml-10">${c.line}</p>
                 <div class="grid grid-cols-2 gap-2">
                     <a href="${routeUrl}" target="_blank" onclick="event.stopPropagation()" class="py-3 bg-indigo-600 text-white text-center text-[10px] rounded-xl font-black">🚃 経路を確認</a>
                     <a href="${lastTrainUrl}" target="_blank" onclick="event.stopPropagation()" class="py-3 bg-slate-800 text-white text-center text-[10px] rounded-xl font-black">🌙 終電を確認</a>
@@ -503,56 +491,7 @@ function renderCards(containerId, candidates, section) {
         `;
     }).join('');
 }
-
-// 経路情報を計算して表示
-async function calculateRouteInfo(me, candidate, infoId, limitId) {
-    const el = document.getElementById(infoId);
-    const limitEl = document.getElementById(limitId);
     
-    if (!me || !me.lat || !me.lng || !candidate.lat || !candidate.lng) {
-        if (el) el.innerHTML = '<span class="text-slate-400">位置情報がありません</span>';
-        return;
-    }
-
-    try {
-        // 自分の駅 → 候補駅 の経路
-        const route = await getTransitInfoByCoords(me.lat, me.lng, candidate.lat, candidate.lng, false);
-        
-        if (el && route) {
-            const estimateLabel = route.isEstimate ? '<span class="text-[9px] text-orange-500 ml-1">(概算)</span>' : '';
-            el.innerHTML = `<span class="text-indigo-600 font-black">あなた：</span>${route.duration} <span class="text-slate-300 mx-1">/</span> 乗換${route.transfers}回${estimateLabel}`;
-        } else if (el) {
-            el.innerHTML = '<span class="text-slate-400">経路情報を取得できませんでした</span>';
-        }
-
-        // 全メンバーの所要時間を計算して、最も遠い人を表示
-        const members = (groupData.members || []).filter(m => m.lat && m.lng);
-        if (members.length > 0 && limitEl) {
-            const allRoutes = await Promise.all(
-                members.map(m => getTransitInfoByCoords(m.lat, m.lng, candidate.lat, candidate.lng, false))
-            );
-            
-            const validRoutes = allRoutes
-                .map((r, idx) => r ? { ...r, member: members[idx] } : null)
-                .filter(r => r !== null);
-            
-            if (validRoutes.length > 0) {
-                // 最も時間がかかる人を見つける
-                const longest = validRoutes.reduce((prev, curr) => 
-                    (curr.durationMin > prev.durationMin) ? curr : prev
-                );
-                const isEstimate = validRoutes.some(r => r.isEstimate);
-                const estimateNote = isEstimate ? ' (概算)' : '';
-                limitEl.innerHTML = `⏱️ 最も遠い人：<span class="text-base">${longest.member.name}さん ${longest.duration}</span>${estimateNote}`;
-                limitEl.classList.remove('hidden');
-            }
-        }
-    } catch (e) {
-        console.error('calculateRouteInfo error:', e);
-        if (el) el.innerHTML = '<span class="text-slate-400">経路計算エラー</span>';
-    }
-}
-
 /** 投票 **/
 async function vote(sName) {
     if (!myMemberId) {
