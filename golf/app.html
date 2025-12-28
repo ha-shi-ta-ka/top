@@ -2,383 +2,242 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Fairway Meet - AIが選ぶ最高のゴルフ場</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golf Aida - 中間地点のゴルフ場を探す</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
     
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-WCDYPYTJE3"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-WCDYPYTJE3');
-    </script>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDzpRxX5te8hcxf_az6n92FTkoRbyCEXwI&libraries=places&v=beta&callback=initApp"></script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDzpRxX5te8hcxf_az6n92FTkoRbyCEXwI&libraries=places&callback=initMap"></script>
-
     <script>
         tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['"Noto Sans JP"', 'sans-serif'], heading: ['"Outfit"', 'sans-serif'] },
-                    colors: { brand: { 50: '#f0fdf4', 100: '#dcfce7', 500: '#22c55e', 600: '#16a34a', 900: '#14532d' } }
-                }
-            }
+            theme: { extend: { 
+                fontFamily: { sans: ['"Noto Sans JP"', 'sans-serif'], heading: ['"Outfit"', 'sans-serif'] },
+                colors: { golf: '#15803d' },
+                animation: { 'fade-in': 'fadeIn 0.4s ease-out' },
+                keyframes: { fadeIn: { '0%': { opacity: '0', transform: 'translateY(5px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } }
+            } }
         }
     </script>
     <style>
-        body { background-color: #f0fdf4; color: #1e293b; -webkit-tap-highlight-color: transparent; }
-        .glass { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.6); }
-        .glass-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.7); border-radius: 1.5rem; transition: all 0.3s ease; }
-        .map-container { height: 340px; border-radius: 1.5rem; width: 100%; border: 4px solid white; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1); }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .tab-active { color: #15803d; border-bottom: 3px solid #22c55e; }
-        .tab-inactive { color: #94a3b8; }
-        .fade-in { animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(10px); }
-        @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+        .glass { background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.5); }
+        .glass-card { background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.5); border-radius: 2rem; box-shadow: 0 20px 50px rgba(0,0,0,0.1); }
+        .map-container { height: 300px; border-radius: 1.5rem; overflow: hidden; }
+        .role-btn.active { border-color: #15803d !important; background-color: #f0fdf4 !important; color: #15803d !important; }
     </style>
 </head>
-<body class="pb-20">
-    <div class="fixed inset-0 z-[-1] bg-[radial-gradient(at_0%_0%,rgba(34,197,94,0.15)_0,transparent_50%),radial-gradient(at_100%_100%,rgba(234,179,8,0.1)_0,transparent_50%)]"></div>
-
-    <nav class="fixed top-0 left-0 right-0 z-50 glass px-6 py-4 border-b border-white/50">
+<body class="font-sans bg-slate-100 text-slate-900 min-h-screen pb-12">
+    <nav class="fixed top-0 left-0 right-0 z-50 glass border-b border-slate-200/50 px-6 py-4">
         <div class="max-w-2xl mx-auto flex justify-between items-center">
-            <a href="index.html" class="flex items-center gap-2">
-                <span class="text-2xl">⛳️</span>
-                <span class="text-xl font-black text-brand-900 font-heading">Fairway Meet</span>
-            </a>
-            <button onclick="shareGroupInfo()" class="bg-white/80 text-brand-600 px-4 py-2 rounded-full text-xs font-bold border border-brand-100">招待</button>
+            <a href="#" class="text-2xl font-black tracking-tighter text-golf font-heading">Golf Aida</a>
+            <span class="text-[10px] font-bold bg-golf text-white px-3 py-1 rounded-full shadow-sm">BETA</span>
         </div>
     </nav>
 
-    <main class="max-w-2xl mx-auto px-4 pt-24 space-y-6">
-        <div id="loading" class="fixed inset-0 bg-white/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center hidden">
-            <div class="animate-spin rounded-full h-14 w-14 border-[5px] border-brand-100 border-t-brand-600 mb-4"></div>
-            <p class="text-brand-600 font-bold text-sm tracking-widest animate-pulse">AIが最適な場所を計算中...</p>
-        </div>
-
-        <div id="createView" class="fade-in">
-            <div class="glass p-8 text-center rounded-[2.5rem] shadow-xl">
-                <div class="w-20 h-20 bg-brand-600 rounded-[2rem] flex items-center justify-center text-4xl mx-auto mb-6 text-white shadow-lg">🚙</div>
-                <h1 class="text-2xl font-black mb-2 text-slate-800">ゴルフ場調整</h1>
-                <input type="text" id="groupName" placeholder="例: GWゴルフコンペ 🏆" class="w-full px-6 py-4 rounded-2xl bg-white border border-brand-100 outline-none text-center mb-6 text-lg shadow-inner">
-                <button onclick="createGroup()" class="w-full py-4 rounded-2xl bg-brand-600 text-white font-bold text-lg shadow-xl hover:bg-brand-700 transition-all">グループを作る 🚀</button>
+    <main class="relative z-10 max-w-2xl mx-auto px-4 pt-24 space-y-6">
+        <div id="createView" class="animate-fade-in">
+            <div class="glass-card p-10 text-center">
+                <div class="w-20 h-20 bg-green-100 text-golf rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6">⛳️</div>
+                <h1 class="text-2xl font-black mb-2 font-heading italic">公平なゴルフ場選び</h1>
+                <p class="text-sm text-slate-500 mb-8 font-medium">運転時間、相乗り、高速代。すべてを最適化。</p>
+                <input type="text" id="groupName" placeholder="コンペ名（例：Aidaオープン）" class="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 mb-6 outline-none focus:border-golf transition-all">
+                <button onclick="createGroup()" class="w-full py-5 rounded-2xl bg-golf text-white font-black text-lg shadow-xl shadow-green-200 hover:scale-[1.02] active:scale-95 transition-all">グループを作成</button>
             </div>
         </div>
 
-        <div id="groupView" class="hidden space-y-6">
-            <div class="glass p-6 rounded-[2rem] border border-white/60 shadow-sm">
-                <div class="flex justify-between items-start mb-6">
-                    <div>
-                        <h2 id="groupTitleDisplay" class="text-xl font-black text-slate-800 font-heading">Group</h2>
-                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">参加メンバー: <span id="memberCount" class="text-brand-600">0</span></p>
-                    </div>
-                    <button onclick="openAddFriendModal()" class="bg-white text-brand-600 p-3 rounded-2xl border border-brand-100 shadow-sm hover:bg-brand-50">＋ 友達追加</button>
-                </div>
-                <div class="flex gap-4 overflow-x-auto hide-scrollbar pb-2" id="memberList"></div>
-                <div id="actionArea" class="mt-6"></div>
+        <div id="groupView" class="hidden space-y-6 animate-fade-in">
+            <div class="glass-card p-5 flex items-center justify-between gap-4">
+                <div class="flex-1 bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 truncate text-[11px] font-mono text-slate-500" id="shareUrl"></div>
+                <button onclick="copyUrl()" class="px-6 py-3 bg-golf text-white rounded-xl text-xs font-black whitespace-nowrap">招待コピー</button>
             </div>
 
-            <div id="aiStatus" class="hidden glass p-5 rounded-2xl border-2 border-brand-500 bg-brand-50/50 animate-pulse">
-                <div class="flex items-center gap-4">
-                    <div class="text-3xl">🤖</div>
-                    <div>
-                        <p class="text-sm font-black text-brand-700">AIが中間地点を分析しています...</p>
-                        <p class="text-[10px] text-brand-600 font-medium">全員が納得する最高のコースを提案します</p>
-                    </div>
+            <div class="glass-card p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-sm font-black text-slate-800">👥 メンバー (<span id="memberCount">0</span>)</h2>
+                </div>
+                <div id="memberList" class="space-y-3 mb-6"></div>
+                <button id="joinBtn" onclick="showJoinForm()" class="w-full py-4 rounded-2xl bg-white border-2 border-golf text-golf font-black">✋ あなたの情報を入力</button>
+            </div>
+
+            <div id="joinForm" class="hidden glass-card p-6 border-2 border-golf/20 animate-fade-in">
+                <h2 class="text-sm font-black text-golf mb-6">📝 参加情報を入力</h2>
+                <input type="text" id="nickname" placeholder="ニックネーム" class="w-full px-5 py-4 rounded-xl border-2 border-slate-100 mb-4 outline-none focus:border-golf text-lg font-bold">
+                <input type="text" id="addressInput" placeholder="出発地（自宅や最寄りIC名）" class="w-full px-5 py-4 rounded-xl border-2 border-slate-100 mb-6 outline-none focus:border-golf text-lg font-bold">
+                
+                <p class="text-[10px] font-black text-slate-400 mb-3 ml-1 uppercase">移動手段</p>
+                <div class="grid grid-cols-3 gap-3 mb-8">
+                    <button onclick="setRole('driver')" id="role-driver" class="role-btn py-4 rounded-xl border-2 border-slate-100 flex flex-col items-center gap-2 bg-white transition-all">
+                        <span class="text-2xl">🚗</span><span class="text-[10px] font-black">運転手</span>
+                    </button>
+                    <button onclick="setRole('passenger')" id="role-passenger" class="role-btn py-4 rounded-xl border-2 border-slate-100 flex flex-col items-center gap-2 bg-white transition-all">
+                        <span class="text-2xl">🙋‍♂️</span><span class="text-[10px] font-black">相乗り</span>
+                    </button>
+                    <button onclick="setRole('individual')" id="role-individual" class="role-btn py-4 rounded-xl border-2 border-slate-100 flex flex-col items-center gap-2 bg-white transition-all">
+                        <span class="text-2xl">🚆</span><span class="text-[10px] font-black">自走/電車</span>
+                    </button>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="joinGolfGroup()" class="flex-1 py-4 rounded-xl bg-golf text-white font-black">確定</button>
+                    <button onclick="closeJoinForm()" class="px-6 py-4 rounded-xl bg-slate-100 font-bold">戻る</button>
                 </div>
             </div>
 
-            <div id="mainContent" class="hidden space-y-6">
-                <div class="flex border-b border-brand-200 sticky top-[72px] bg-[#f0fdf4]/95 backdrop-blur-xl z-40 px-2 pt-2">
-                    <button onclick="switchTab('normal')" id="tab-normal" class="flex-1 py-3 text-sm font-bold tab-active">📍 AIおすすめ候補</button>
-                    <button onclick="switchTab('ranking')" id="tab-ranking" class="flex-1 py-3 text-sm font-bold tab-inactive">🏆 投票結果</button>
+            <div id="golfSection" class="hidden space-y-4">
+                <div class="glass-card p-6">
+                    <h2 class="text-lg font-black text-slate-900 mb-4 flex items-center gap-2">⛳️ 公平なゴルフ場候補</h2>
+                    <div id="golfCandidates" class="space-y-4"></div>
                 </div>
-                <div id="content-normal" class="space-y-6">
-                    <div id="normalMap" class="map-container"></div>
-                    <div id="normalCandidates" class="grid gap-4"></div>
-                </div>
-                <div id="content-ranking" class="hidden space-y-4">
-                    <div id="rankingList" class="space-y-3"></div>
-                </div>
-            </div>
-
-            <div id="emptyState" class="text-center py-10 opacity-60">
-                <div class="text-5xl mb-4">⛳️</div>
-                <p class="font-bold text-slate-500">あと一人登録されると、<br>AIが中間地点からゴルフ場を提案します</p>
             </div>
         </div>
     </main>
 
-    <div id="modalOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] hidden flex items-end sm:items-center justify-center p-0 sm:p-4 transition-opacity duration-300">
-        <div id="modalContent" class="bg-white w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 transform translate-y-full transition-transform duration-300">
-            <h2 id="modalTitle" class="text-xl font-black mb-8 text-center font-heading">プロフィール設定</h2>
-            <div class="space-y-6">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-widest">お名前</label>
-                    <input type="text" id="nickname" class="w-full px-5 py-4 rounded-xl bg-slate-50 border border-slate-100 outline-none font-bold shadow-inner">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-widest">出発地（駅やIC名）</label>
-                    <div class="relative">
-                        <input type="text" id="stationInput" oninput="searchStationDebounced()" class="w-full px-5 py-4 rounded-xl bg-slate-50 border border-slate-100 outline-none font-bold shadow-inner">
-                        <div id="suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl border z-50 hidden max-h-40 overflow-y-auto"></div>
-                    </div>
-                </div>
-                <div class="grid grid-cols-3 gap-2">
-                    <label class="cursor-pointer"><input type="radio" name="carStatus" value="driver" class="peer sr-only" checked><div class="rounded-xl border p-3 text-center peer-checked:border-brand-500 peer-checked:bg-brand-50 font-bold text-[10px] transition-all">🚗 車出す</div></label>
-                    <label class="cursor-pointer"><input type="radio" name="carStatus" value="passenger" class="peer sr-only"><div class="rounded-xl border p-3 text-center peer-checked:border-brand-500 peer-checked:bg-brand-50 font-bold text-[10px] transition-all">🙋‍♂️ 同乗</div></label>
-                    <label class="cursor-pointer"><input type="radio" name="carStatus" value="train" class="peer sr-only"><div class="rounded-xl border p-3 text-center peer-checked:border-brand-500 peer-checked:bg-brand-50 font-bold text-[10px] transition-all">🚃 電車</div></label>
-                </div>
-                <div class="flex gap-3 pt-4">
-                    <button onclick="closeModal()" class="flex-1 py-4 bg-slate-100 font-bold rounded-2xl text-slate-500">閉じる</button>
-                    <button onclick="submitMember()" class="flex-1 py-4 bg-brand-600 text-white font-bold rounded-2xl shadow-lg">保存する</button>
-                </div>
-            </div>
-        </div>
-    </div>
+<script>
+    /** * Config */
+    const RAKUTEN_APP_ID = "1018104301501452402";
+    const RAKUTEN_AFFILIATE_ID = "4f92e4a3.4db7743d.4f92e4a4.13bb04b6";
+    
+    const firebaseConfig = {
+        apiKey: "AIzaSyCxj6Qxk6PkL9WhbIQZh_wCwlhZBdY8MrQ",
+        authDomain: "aida-f2eb3.firebaseapp.com",
+        projectId: "aida-f2eb3",
+        storageBucket: "aida-f2eb3.firebasestorage.app",
+        messagingSenderId: "124876591098",
+        appId: "1:124876591098:web:93bef3d94de8cf37799e43"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-    <script>
-        // --- Firebase & Config ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyCxj6Qxk6PkL9WhbIQZh_wCwlhZBdY8MrQ",
-            authDomain: "aida-f2eb3.firebaseapp.com",
-            projectId: "aida-f2eb3",
-            storageBucket: "aida-f2eb3.firebasestorage.app",
-            messagingSenderId: "124876591098",
-            appId: "1:124876591098:web:93bef3d94de8cf37799e43"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const COLLECTION_NAME = 'golf_groups';
-        const STORAGE_KEY_PREFIX = 'fairway_mem_';
+    let groupId = null, groupData = null, myMemberId = null;
+    let selectedPlace = null;
+    let currentRole = 'individual';
 
-        let groupId = new URLSearchParams(window.location.search).get('g');
-        let groupData = null, myMemberId = null, selectedStation = null, googleMap = null, mapMarkers = [], isProxyMode = false;
-
-        function initMap() { /* Google Maps Callback */ }
-
-        // --- Start App ---
+    function initApp() {
+        const urlParams = new URLSearchParams(window.location.search);
+        groupId = urlParams.get('g');
         if (groupId) {
             document.getElementById('createView').classList.add('hidden');
             document.getElementById('groupView').classList.remove('hidden');
-            initGroup();
+            loadGroup();
         }
+        setupAutocomplete();
+        setRole('individual');
+    }
 
-        async function createGroup() {
-            const name = document.getElementById('groupName').value.trim() || 'ゴルフコンペ';
-            const docRef = await db.collection(COLLECTION_NAME).add({
-                name, members: [], memberVotes: {}, candidates: [], createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            window.location.href = `?g=${docRef.id}`;
-        }
-
-        function initGroup() {
-            myMemberId = localStorage.getItem(`${STORAGE_KEY_PREFIX}${groupId}`);
-            db.collection(COLLECTION_NAME).doc(groupId).onSnapshot(async (doc) => {
-                if (doc.exists) {
-                    groupData = doc.data();
-                    renderMemberSection();
-                    renderRanking();
-                    
-                    const validMembers = groupData.members.filter(m => m.lat && m.lng);
-                    
-                    if (validMembers.length >= 2 && (!groupData.candidates || groupData.candidates.length === 0)) {
-                        document.getElementById('aiStatus').classList.remove('hidden');
-                        suggestBestCourses(validMembers);
-                    } else if (groupData.candidates && groupData.candidates.length > 0) {
-                        document.getElementById('aiStatus').classList.add('hidden');
-                        document.getElementById('emptyState').classList.add('hidden');
-                        document.getElementById('mainContent').classList.remove('hidden');
-                        renderMainContent(groupData.candidates);
-                    }
-                }
-            });
-        }
-
-        // --- AI Automatic Suggestion Logic ---
-        async function suggestBestCourses(members) {
-            showLoading(true);
-            const avgLat = members.reduce((s, m) => s + m.lat, 0) / members.length;
-            const avgLng = members.reduce((s, m) => s + m.lng, 0) / members.length;
-            const center = new google.maps.LatLng(avgLat, avgLng);
-
-            const service = new google.maps.places.PlacesService(googleMap || new google.maps.Map(document.createElement('div')));
-            service.nearbySearch({ location: center, radius: 40000, keyword: 'ゴルフ場' }, async (results, status) => {
-                if (status === google.maps.places.PlacesServiceStatus.OK) {
-                    const top3 = results.filter(r => r.rating).sort((a,b) => b.rating - a.rating).slice(0, 3).map(res => ({
-                        name: res.name, lat: res.geometry.location.lat(), lng: res.geometry.location.lng(),
-                        rating: res.rating || 0, placeId: res.place_id, price: 10000 + Math.floor(Math.random() * 8000)
-                    }));
-                    await db.collection(COLLECTION_NAME).doc(groupId).update({ candidates: top3 });
-                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#22c55e', '#eab308'] });
-                }
-                showLoading(false);
-            });
-        }
-
-        function renderMainContent(candidates) {
-            if (!googleMap && window.google) {
-                googleMap = new google.maps.Map(document.getElementById('normalMap'), {
-                    center: { lat: candidates[0].lat, lng: candidates[0].lng },
-                    zoom: 11, disableDefaultUI: true,
-                    styles: [{ featureType: "poi", stylers: [{ visibility: "off" }] }]
-                });
+    function setupAutocomplete() {
+        const input = document.getElementById('addressInput');
+        const autocomplete = new google.maps.places.Autocomplete(input, { types: ['address', 'establishment'], componentRestrictions: { country: 'jp' } });
+        autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (place.geometry) {
+                selectedPlace = { name: place.name || place.formatted_address, lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
             }
-            mapMarkers.forEach(m => m.setMap(null));
-            mapMarkers = [];
-            const bounds = new google.maps.LatLngBounds();
-            
-            // 出発地ピン (青)
-            groupData.members.forEach(m => {
-                const marker = new google.maps.Marker({
-                    position: { lat: m.lat, lng: m.lng }, map: googleMap,
-                    icon: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-                });
-                bounds.extend(marker.getPosition());
-                mapMarkers.push(marker);
-            });
+        });
+    }
 
-            // ゴルフ場ピン (緑)
-            candidates.forEach((c, i) => {
-                const marker = new google.maps.Marker({
-                    position: { lat: c.lat, lng: c.lng }, map: googleMap,
-                    label: { text: (i + 1).toString(), color: "white", fontWeight: "bold" },
-                    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 18, fillColor: "#16a34a", fillOpacity: 1, strokeColor: "white", strokeWeight: 2 }
-                });
-                bounds.extend(marker.getPosition());
-                mapMarkers.push(marker);
-            });
-            googleMap.fitBounds(bounds);
+    function setRole(role) {
+        currentRole = role;
+        document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`role-${role}`).classList.add('active');
+    }
 
-            const votes = groupData.memberVotes || {};
-            const myVotes = votes[myMemberId] || [];
+    /** * データ同期 */
+    function loadGroup() {
+        document.getElementById('shareUrl').textContent = window.location.href;
+        db.collection('groups').doc(groupId).onSnapshot(doc => {
+            if (doc.exists) {
+                groupData = doc.data();
+                myMemberId = localStorage.getItem('aida_member_' + groupId);
+                renderAll();
+            }
+        });
+    }
 
-            document.getElementById('normalCandidates').innerHTML = candidates.map((c, i) => {
-                const isVoted = myVotes.includes(c.name);
-                const voteCount = Object.values(votes).filter(v => v.includes(c.name)).length;
-                const reserveUrl = `https://search.gora.golf.rakuten.co.jp/?menu=search&act=search&keyword=${encodeURIComponent(c.name)}`;
-                
-                return `
-                <div class="glass-card p-5 relative cursor-pointer ${isVoted ? 'ring-2 ring-brand-500 bg-brand-50/50' : 'hover:bg-white'}" onclick="toggleVote('${c.name}')">
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-2xl bg-brand-600 text-white flex items-center justify-center font-black text-xl shadow-md">${i+1}</div>
-                            <div>
-                                <h3 class="font-bold text-slate-900 leading-tight">${c.name}</h3>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <span class="text-xs text-orange-500 font-bold">★ ${c.rating}</span>
-                                    <span class="text-[10px] text-slate-400 font-medium">参考価格 ¥${c.price.toLocaleString()}〜</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-brand-900 text-white px-3 py-1 rounded-full text-xs font-bold">👍 ${voteCount}</div>
+    function renderAll() {
+        const members = groupData.members || [];
+        document.getElementById('memberCount').textContent = members.length;
+        document.getElementById('memberList').innerHTML = members.map(m => `
+            <div class="flex items-center gap-4 p-4 bg-white rounded-2xl border ${m.id === myMemberId ? 'ring-2 ring-golf' : 'border-slate-100'}">
+                <div class="text-2xl">${m.role === 'driver' ? '🚗' : m.role === 'passenger' ? '🙋‍♂️' : '🚆'}</div>
+                <div class="flex-1">
+                    <p class="text-xs font-black">${m.name}</p>
+                    <p class="text-[9px] text-slate-400 truncate">${m.address}</p>
+                </div>
+                <button onclick="deleteMember('${m.id}')" class="text-slate-300">🗑️</button>
+            </div>`).join('');
+
+        if (myMemberId) document.getElementById('joinBtn').classList.add('hidden');
+
+        if (members.length >= 2) {
+            calculateGolfCenter(members);
+            document.getElementById('golfSection').classList.remove('hidden');
+        }
+    }
+
+    /** * ゴルフ版計算ロジック：平均地点から楽天GORAでコース取得 */
+    async function calculateGolfCenter(members) {
+        const lat = members.reduce((s, m) => s + m.lat, 0) / members.length;
+        const lng = members.reduce((s, m) => s + m.lng, 0) / members.length;
+        
+        // 楽天GORA APIで周辺のゴルフ場を検索
+        const rakutenUrl = `https://app.rakuten.co.jp/services/api/Gora/GoraGolfCourseSearch/20170623?format=json&latitude=${lat}&longitude=${lng}&searchRadius=50&applicationId=${RAKUTEN_APP_ID}&affiliateId=${RAKUTEN_AFFILIATE_ID}`;
+        
+        try {
+            const res = await fetch(rakutenUrl);
+            const data = await res.json();
+            renderGolfCourses(data.Items.slice(0, 5));
+        } catch (e) { console.error("Rakuten API Error:", e); }
+    }
+
+    /** * 楽天GORAの店舗描画 */
+    function renderGolfCourses(items) {
+        const container = document.getElementById('golfCandidates');
+        container.innerHTML = items.map(item => {
+            const course = item.Item;
+            return `
+                <div class="candidate-card p-5 rounded-[2rem] bg-white border-2 border-slate-50 shadow-sm overflow-hidden">
+                    <img src="${course.golfCourseImageUrl}" class="w-full h-32 object-cover rounded-2xl mb-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-black text-slate-800 flex-1 min-w-0 truncate">${course.golfCourseName}</h3>
+                        <span class="bg-amber-100 text-amber-700 text-[9px] font-bold px-2 py-0.5 rounded ml-2">★${course.evaluation}</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-3 mt-4">
-                        <a href="${reserveUrl}" target="_blank" onclick="event.stopPropagation()" class="bg-white border-2 border-brand-100 py-3 rounded-2xl text-[11px] font-bold text-brand-700 flex items-center justify-center gap-2 shadow-sm hover:bg-brand-50 transition-all">
-                            <span>🚀</span> 楽天GORA予約
-                        </a>
-                        <button class="py-3 rounded-2xl text-[11px] font-bold shadow-md transition-all ${isVoted ? 'bg-brand-600 text-white' : 'bg-slate-800 text-white'}">
-                            ${isVoted ? '投票済み' : 'ここに投票'}
-                        </button>
+                    <p class="text-[10px] text-slate-400 mb-4 line-clamp-1">${course.golfCourseCaption}</p>
+                    <div class="flex flex-col gap-2">
+                        <a href="${course.reserveUrlPC}" target="_blank" class="w-full py-4 bg-golf text-white text-center text-xs rounded-xl font-black shadow-lg">楽天GORAで予約する</a>
                     </div>
                 </div>`;
-            }).join('');
-        }
+        }).join('');
+    }
 
-        // --- Common Helpers ---
-        function renderMemberSection() {
-            document.getElementById('groupTitleDisplay').textContent = groupData.name;
-            document.getElementById('memberCount').textContent = groupData.members.length;
-            document.getElementById('memberList').innerHTML = groupData.members.map(m => `
-                <div class="flex-shrink-0 flex flex-col items-center gap-1">
-                    <div class="w-14 h-14 rounded-2xl bg-white border-2 ${m.id === myMemberId ? 'border-brand-500 shadow-md' : 'border-slate-100'} flex items-center justify-center text-2xl">🏌️</div>
-                    <p class="text-[10px] font-bold text-slate-600 truncate max-w-[70px]">${m.name}</p>
-                </div>`).join('');
-            const actionArea = document.getElementById('actionArea');
-            const me = groupData.members.find(m => m.id === myMemberId);
-            if (myMemberId && me) {
-                actionArea.innerHTML = `<div onclick="showEditModal()" class="p-4 bg-brand-50 rounded-2xl border border-brand-100 text-center font-bold text-sm text-brand-800 cursor-pointer shadow-sm hover:bg-brand-100 transition-all">🏠 出発地: ${me.station} ✎</div>`;
-            } else {
-                actionArea.innerHTML = `<button onclick="showJoinModal()" class="w-full py-5 rounded-2xl bg-brand-600 text-white font-bold shadow-xl hover:scale-105 transition-all">参加して出発地を登録する</button>`;
-            }
-        }
+    /** * 補助関数 */
+    function showJoinForm() { document.getElementById('joinForm').classList.remove('hidden'); document.getElementById('joinBtn').classList.add('hidden'); }
+    function closeJoinForm() { document.getElementById('joinForm').classList.add('hidden'); if(!myMemberId) document.getElementById('joinBtn').classList.remove('hidden'); }
 
-        async function submitMember() {
-            const name = document.getElementById('nickname').value.trim();
-            const station = document.getElementById('stationInput').value.trim();
-            if (!name || !station) return Toastify({ text: "名前と場所を入力してください", style: { background: "#ef4444" } }).showToast();
-            showLoading(true);
-            const id = isProxyMode ? `mem_${Date.now()}` : (myMemberId || `mem_${Date.now()}`);
-            const lat = selectedStation ? selectedStation.lat : 35.6895, lng = selectedStation ? selectedStation.lng : 139.6917;
-            const members = [...(groupData.members || [])].filter(m => m.id !== id);
-            members.push({ id, name, station, lat, lng, carStatus: document.querySelector('input[name="carStatus"]:checked').value });
-            await db.collection(COLLECTION_NAME).doc(groupId).update({ members });
-            if (!isProxyMode) { myMemberId = id; localStorage.setItem(`${STORAGE_KEY_PREFIX}${groupId}`, id); }
-            closeModal();
-            showLoading(false);
-        }
+    async function createGroup() {
+        const name = document.getElementById('groupName').value.trim() || 'ゴルフコンペ';
+        const doc = await db.collection('groups').add({ name, members: [], createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        location.href = `?g=${doc.id}`;
+    }
 
-        let sT;
-        function searchStationDebounced() {
-            clearTimeout(sT);
-            const q = document.getElementById('stationInput').value;
-            if(q.length < 1) return;
-            sT = setTimeout(() => {
-                fetch(`https://express.heartrails.com/api/json?method=getStations&name=${encodeURIComponent(q)}`)
-                    .then(res => res.json()).then(data => {
-                        const sug = document.getElementById('suggestions');
-                        if (data.response?.station) {
-                            sug.classList.remove('hidden');
-                            sug.innerHTML = data.response.station.map(s => `<div onclick='selectStation("${s.name}", ${s.y}, ${s.x})' class="p-4 border-b text-sm font-bold cursor-pointer hover:bg-slate-50">${s.name} (${s.line})</div>`).join('');
-                        }
-                    });
-            }, 400);
-        }
-        function selectStation(n, y, x) {
-            selectedStation = { name: n, lat: y, lng: x };
-            document.getElementById('stationInput').value = n;
-            document.getElementById('suggestions').classList.add('hidden');
-        }
+    async function joinGolfGroup() {
+        const name = document.getElementById('nickname').value.trim();
+        if (!name || !selectedPlace) return alert('入力を確認してください');
+        const m = { id: 'mem_' + Date.now(), name, role: currentRole, address: selectedPlace.name, lat: selectedPlace.lat, lng: selectedPlace.lng };
+        await db.collection('groups').doc(groupId).update({ members: firebase.firestore.FieldValue.arrayUnion(m) });
+        localStorage.setItem('aida_member_' + groupId, m.id);
+        closeJoinForm();
+    }
 
-        async function toggleVote(name) {
-            if (!myMemberId) return showJoinModal();
-            const votes = groupData.memberVotes || {};
-            let my = votes[myMemberId] || [];
-            if (my.includes(name)) my = my.filter(v => v !== name); else { my.push(name); confetti({ particleCount: 40, colors: ['#22c55e', '#eab308'] }); }
-            votes[myMemberId] = my;
-            await db.collection(COLLECTION_NAME).doc(groupId).update({ memberVotes: votes });
-        }
+    async function deleteMember(id) {
+        if(!confirm('削除しますか？')) return;
+        const members = groupData.members.filter(x => x.id !== id);
+        await db.collection('groups').doc(groupId).update({ members });
+        if(id === myMemberId) localStorage.removeItem('aida_member_' + groupId);
+    }
 
-        function showLoading(s) { document.getElementById('loading').classList.toggle('hidden', !s); }
-        function openModal(title) { document.getElementById('modalTitle').textContent = title; document.getElementById('modalOverlay').classList.remove('hidden'); setTimeout(() => document.getElementById('modalContent').classList.remove('translate-y-full'), 10); }
-        function closeModal() { document.getElementById('modalContent').classList.add('translate-y-full'); setTimeout(() => document.getElementById('modalOverlay').classList.add('hidden'), 300); }
-        function showJoinModal() { isProxyMode = false; openModal("参加登録"); }
-        function openAddFriendModal() { isProxyMode = true; openModal("友達を代理追加"); }
-        function showEditModal() { isProxyMode = false; openModal("情報を修正"); }
-        function switchTab(t) {
-            document.getElementById('content-normal').classList.toggle('hidden', t !== 'normal');
-            document.getElementById('content-ranking').classList.toggle('hidden', t !== 'ranking');
-            document.getElementById('tab-normal').className = `flex-1 py-3 text-sm font-bold ${t==='normal'?'tab-active':'tab-inactive'}`;
-            document.getElementById('tab-ranking').className = `flex-1 py-3 text-sm font-bold ${t==='ranking'?'tab-active':'tab-inactive'}`;
-        }
-        function renderRanking() {
-            const votes = groupData.memberVotes || {};
-            const counts = {};
-            Object.values(votes).forEach(vArr => vArr.forEach(name => counts[name] = (counts[name] || 0) + 1));
-            const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
-            document.getElementById('rankingList').innerHTML = sorted.map(([name, count], i) => `<div class="p-5 bg-white rounded-2xl border flex justify-between items-center shadow-sm font-bold text-slate-800"><span>${i+1}. ${name}</span><span class="text-brand-600 text-xl">${count} <small class="text-xs">票</small></span></div>`).join('');
-        }
-        function shareGroupInfo() { const url = window.location.href; if(navigator.share) navigator.share({ title: 'Fairway Meet', url }); else { navigator.clipboard.writeText(url); Toastify({ text: "URLをコピーしました 📋" }).showToast(); } }
-    </script>
+    function copyUrl() { navigator.clipboard.writeText(window.location.href); alert('招待URLをコピーしました！'); }
+</script>
 </body>
 </html>
