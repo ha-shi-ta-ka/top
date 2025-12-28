@@ -4,25 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aida - グループ | 待ち合わせ場所を投票で決める</title>
-    
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-WCDYPYTJE3"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-WCDYPYTJE3');</script>
-    
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
-    
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDzpRxX5te8hcxf_az6n92FTkoRbyCEXwI&libraries=places&callback=initApp"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     <script>
         tailwind.config = {
-            theme: { 
-                extend: { 
+            theme: {
+                extend: {
                     fontFamily: { sans: ['"Noto Sans JP"', 'sans-serif'], heading: ['"Outfit"', 'sans-serif'] },
                     animation: { 'fade-in': 'fadeIn 0.3s ease-out' },
                     keyframes: { fadeIn: { '0%': { opacity: '0', transform: 'translateY(5px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } }
-                } 
+                }
             }
         }
     </script>
@@ -30,10 +27,11 @@
         .glass { background: rgba(255,255,255,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.5); }
         .glass-card { background: rgba(255,255,255,0.9); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.5); border-radius: 1.5rem; box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
         .map-container { height: 250px; border-radius: 1.5rem; width: 100%; overflow: hidden; background: #f8fafc; }
-        .btn-primary { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; font-weight: 800; transition: all 0.2s; shadow-sm; }
+        .btn-primary { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; font-weight: 800; transition: all 0.2s; }
         .btn-primary:active { transform: scale(0.96); }
         .btn-bias { background: #fdf2f8; border: 1px solid #fbcfe8; color: #db2777; font-weight: 700; transition: all 0.2s; }
         .btn-bias:hover { background: #fbcfe8; }
+        .btn-bias.active { background: #db2777; color: white; border-color: #db2777; }
         .candidate-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 </head>
@@ -139,8 +137,7 @@
 </body>
 
 <script>
-/** * Firebase Setup 
- */
+/** Firebase Setup */
 const firebaseConfig = {
     apiKey: "AIzaSyCxj6Qxk6PkL9WhbIQZh_wCwlhZBdY8MrQ",
     authDomain: "aida-f2eb3.firebaseapp.com",
@@ -154,15 +151,25 @@ const db = firebase.firestore();
 
 let groupId = null, groupData = null, myMemberId = null;
 let selectedStation = null, addFriendSelectedStation = null, editTargetId = null;
-let currentBiasCandidates = []; // 誰かに寄せる候補を保持
+let currentBiasCandidates = [];
+let currentBiasMemberId = null; // 現在選択中のbiasメンバー
 
 function initApp() {
     setupAutocomplete('stationInput', (place) => {
-        selectedStation = { name: place.name.replace(/駅$/g,''), lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
+        selectedStation = { 
+            name: place.name.replace(/駅$/g,''), 
+            lat: place.geometry.location.lat(), 
+            lng: place.geometry.location.lng() 
+        };
     });
     setupAutocomplete('addFriendStationInput', (place) => {
-        addFriendSelectedStation = { name: place.name.replace(/駅$/g,''), lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
+        addFriendSelectedStation = { 
+            name: place.name.replace(/駅$/g,''), 
+            lat: place.geometry.location.lat(), 
+            lng: place.geometry.location.lng() 
+        };
     });
+
     const urlParams = new URLSearchParams(window.location.search);
     groupId = urlParams.get('g');
     if (groupId) {
@@ -176,7 +183,9 @@ function initApp() {
 function setupAutocomplete(id, callback) {
     const input = document.getElementById(id);
     const autocomplete = new google.maps.places.Autocomplete(input, {
-        types: ['transit_station'], componentRestrictions: { country: 'jp' }, fields: ['name', 'geometry']
+        types: ['transit_station'], 
+        componentRestrictions: { country: 'jp' }, 
+        fields: ['name', 'geometry']
     });
     autocomplete.addListener('place_changed', () => {
         const place = autocomplete.getPlace();
@@ -184,23 +193,31 @@ function setupAutocomplete(id, callback) {
     });
 }
 
-/** * 経路 & 終電 
- */
+/** 経路 & 終電 */
 let directionsService = null;
+
 async function getTransitInfo(origin, destination, isLast = false) {
     if (!directionsService) directionsService = new google.maps.DirectionsService();
     const dateStr = document.getElementById('meetDate').value;
+    
     return new Promise((resolve) => {
         const req = {
-            origin: origin + "駅", destination: destination + "駅",
+            origin: origin + "駅", 
+            destination: destination + "駅",
             travelMode: google.maps.TravelMode.TRANSIT,
             transitOptions: { routingPreference: google.maps.TransitRoutePreference.FEWER_TRANSFERS }
         };
         if (isLast && dateStr) {
-            const d = new Date(dateStr); d.setHours(23, 59, 0);
+            const d = new Date(dateStr); 
+            d.setHours(23, 59, 0);
             req.transitOptions.arrivalTime = d;
         }
+        
+        // タイムアウト設定
+        const timeout = setTimeout(() => resolve(null), 5000);
+        
         directionsService.route(req, (res, status) => {
+            clearTimeout(timeout);
             if (status === 'OK') {
                 const leg = res.routes[0].legs[0];
                 const steps = leg.steps.filter(s => s.travel_mode === 'TRANSIT');
@@ -210,14 +227,19 @@ async function getTransitInfo(origin, destination, isLast = false) {
                     depTime: leg.departure_time ? leg.departure_time.value : null,
                     depTimeStr: leg.departure_time ? leg.departure_time.text : "23:30頃"
                 });
-            } else { resolve(null); }
+            } else { 
+                resolve(null); 
+            }
         });
     });
 }
 
 async function createGroup() {
     const name = document.getElementById('groupName').value.trim() || '新しい集まり';
-    const doc = await db.collection('groups').add({ name, members: [], memberVotes: {}, date: null, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    const doc = await db.collection('groups').add({ 
+        name, members: [], memberVotes: {}, date: null, 
+        createdAt: firebase.firestore.FieldValue.serverTimestamp() 
+    });
     location.href = `?g=${doc.id}`;
 }
 
@@ -238,7 +260,10 @@ function loadGroup() {
     });
 }
 
-async function updateDate() { await db.collection('groups').doc(groupId).update({ date: document.getElementById('meetDate').value }); }
+async function updateDate() { 
+    await db.collection('groups').doc(groupId).update({ date: document.getElementById('meetDate').value }); 
+}
+
 async function clearDate() {
     document.getElementById('meetDate').value = "";
     await db.collection('groups').doc(groupId).update({ date: null });
@@ -248,6 +273,7 @@ async function clearDate() {
 function renderAll() {
     const members = groupData.members || [];
     document.getElementById('memberCount').textContent = members.length;
+    
     document.getElementById('memberList').innerHTML = members.map(m => `
         <div class="flex items-center gap-3 p-4 bg-white rounded-2xl border ${m.id === myMemberId ? 'ring-2 ring-indigo-500 border-indigo-100 shadow-sm' : 'border-slate-100'}">
             <div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-[10px]">${m.name[0]}</div>
@@ -259,7 +285,9 @@ function renderAll() {
         </div>
     `).join('');
 
-    if (myMemberId && members.some(m => m.id === myMemberId)) document.getElementById('joinBtn').classList.add('hidden');
+    if (myMemberId && members.some(m => m.id === myMemberId)) {
+        document.getElementById('joinBtn').classList.add('hidden');
+    }
 
     const sMembers = members.filter(m => m.lat);
     if (sMembers.length >= 2) {
@@ -269,6 +297,15 @@ function renderAll() {
         calculateNormal(sMembers);
         renderBiasOptions(sMembers);
         renderRanking();
+        
+        // 🔥 修正: biasセクションも再描画（候補があれば）
+        if (currentBiasCandidates.length > 0) {
+            renderCards('biasCandidates', currentBiasCandidates, 'bias');
+        }
+    } else {
+        document.getElementById('normalSection').classList.add('hidden');
+        document.getElementById('biasSection').classList.add('hidden');
+        document.getElementById('rankingSection').classList.add('hidden');
     }
 }
 
@@ -281,27 +318,51 @@ async function calculateNormal(sMembers) {
 
 function renderBiasOptions(sMembers) {
     document.getElementById('biasMemberList').innerHTML = sMembers.map(m => `
-        <button onclick="fetchStations(${m.lat}, ${m.lng}, 'bias')" class="px-4 py-2 btn-bias rounded-full text-[11px] hover:shadow-sm">
+        <button onclick="selectBiasMember('${m.id}', ${m.lat}, ${m.lng})" 
+                id="bias-btn-${m.id}"
+                class="px-4 py-2 btn-bias rounded-full text-[11px] hover:shadow-sm ${currentBiasMemberId === m.id ? 'active' : ''}">
             ${m.name}
         </button>
     `).join('');
 }
 
-async function fetchStations(lat, lng, type) {
-    const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${lng}&y=${lat}`);
-    const data = await res.json();
-    const stations = data.response?.station || [];
-    const unique = []; const names = new Set();
-    stations.forEach(s => {
-        if(!names.has(s.name)){
-            unique.push({ name: s.name, lat: parseFloat(s.y), lng: parseFloat(s.x), line: s.line });
-            names.add(s.name);
-        }
+// 🔥 修正: biasメンバー選択を別関数に
+function selectBiasMember(memberId, lat, lng) {
+    currentBiasMemberId = memberId;
+    // ボタンのアクティブ状態を更新
+    document.querySelectorAll('[id^="bias-btn-"]').forEach(btn => {
+        btn.classList.remove('active');
     });
-    const candidates = unique.slice(0, 4);
-    if(type === 'bias') currentBiasCandidates = candidates;
-    renderCards(type === 'normal' ? 'normalCandidates' : 'biasCandidates', candidates, type);
-    updateMap(type === 'normal' ? 'normalMap' : 'biasMap', candidates, type === 'normal' ? '#6366f1' : '#ec4899');
+    const activeBtn = document.getElementById(`bias-btn-${memberId}`);
+    if (activeBtn) activeBtn.classList.add('active');
+    
+    fetchStations(lat, lng, 'bias');
+}
+
+async function fetchStations(lat, lng, type) {
+    try {
+        const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${lng}&y=${lat}`);
+        const data = await res.json();
+        const stations = data.response?.station || [];
+        const unique = []; 
+        const names = new Set();
+        stations.forEach(s => {
+            if(!names.has(s.name)){
+                unique.push({ name: s.name, lat: parseFloat(s.y), lng: parseFloat(s.x), line: s.line });
+                names.add(s.name);
+            }
+        });
+        const candidates = unique.slice(0, 4);
+        
+        if(type === 'bias') {
+            currentBiasCandidates = candidates;
+        }
+        
+        renderCards(type === 'normal' ? 'normalCandidates' : 'biasCandidates', candidates, type);
+        updateMap(type === 'normal' ? 'normalMap' : 'biasMap', candidates, type === 'normal' ? '#6366f1' : '#ec4899');
+    } catch(e) {
+        console.error('fetchStations error:', e);
+    }
 }
 
 /** カード描画 **/
@@ -316,143 +377,78 @@ function renderCards(containerId, candidates, section) {
         const infoId = `info-${section}-${i}`;
         const limitId = `limit-${section}-${i}`;
 
-        calculateDetails(me, c, infoId, limitId);
+        // 非同期で詳細を計算
+        setTimeout(() => calculateDetails(me, c, infoId, limitId), 100 * i);
 
         return `
-        <div onclick="vote('${c.name}')" class="candidate-card p-5 rounded-[2rem] border-2 shadow-sm ${isVoted ? 'bg-green-50 border-green-400' : 'bg-white border-slate-50'}">
-            <div class="flex justify-between items-start mb-2">
-                <div class="flex items-center gap-3">
-                    <span class="w-7 h-7 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center font-black">${i+1}</span>
-                    <h3 class="font-black text-lg text-slate-800">${c.name}駅</h3>
+            <div onclick="vote('${c.name}')" class="candidate-card p-5 rounded-[2rem] border-2 shadow-sm cursor-pointer ${isVoted ? 'bg-green-50 border-green-400' : 'bg-white border-slate-50 hover:border-slate-200'}">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex items-center gap-3">
+                        <span class="w-7 h-7 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center font-black">${i+1}</span>
+                        <h3 class="font-black text-lg text-slate-800">${c.name}駅</h3>
+                    </div>
+                    ${vCount > 0 ? `<span class="px-3 py-1 bg-indigo-600 text-white text-[10px] rounded-full font-black shadow-sm">${vCount} 票</span>` : ''}
                 </div>
-                ${vCount > 0 ? `<span class="px-3 py-1 bg-indigo-600 text-white text-[10px] rounded-full font-black shadow-sm">${vCount} 票</span>` : ''}
+                <p class="text-[10px] font-bold text-slate-400 mb-4 ml-10">${c.line}</p>
+                <div id="${infoId}" class="text-[11px] font-bold text-slate-500 mb-2 px-1">
+                    ${me ? '経路を計算中...' : '<span class="text-slate-400">参加すると経路が表示されます</span>'}
+                </div>
+                <div id="${limitId}" class="text-[10px] font-black text-purple-600 bg-purple-50 p-3 rounded-2xl mb-5">
+                    🌙 <span class="opacity-70">開催日を設定すると終電を計算します</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <a href="https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(c.name)}&to=${encodeURIComponent(me?.station || '')}&type=last" target="_blank" onclick="event.stopPropagation()" class="py-3 bg-slate-800 text-white text-center text-[10px] rounded-xl font-black">個人終電</a>
+                    <a href="https://www.google.com/search?q=${encodeURIComponent(c.name + '駅 居酒屋')}" target="_blank" onclick="event.stopPropagation()" class="py-3 bg-orange-500 text-white text-center text-[10px] rounded-xl font-black">店を探す</a>
+                </div>
             </div>
-            <p class="text-[10px] font-bold text-slate-400 mb-4 ml-10">${c.line}</p>
-            
-            <div id="${infoId}" class="text-[11px] font-bold text-slate-500 mb-2 px-1">経路計算中...</div>
-            <div id="${limitId}" class="text-[10px] font-black text-purple-600 bg-purple-50 p-3 rounded-2xl mb-5">終電を確認中...</div>
-
-            <div class="grid grid-cols-2 gap-2">
-                <a href="https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(c.name)}&to=${encodeURIComponent(me?.station || '')}&type=last" target="_blank" onclick="event.stopPropagation()" class="py-3 bg-slate-800 text-white text-center text-[10px] rounded-xl font-black">個人終電</a>
-                <a href="https://www.google.com/search?q=${encodeURIComponent(c.name + '駅 居酒屋')}" target="_blank" onclick="event.stopPropagation()" class="py-3 bg-orange-500 text-white text-center text-[10px] rounded-xl font-black">店を探す</a>
-            </div>
-        </div>`;
+        `;
     }).join('');
 }
 
+// 🔥 修正: calculateDetails関数を改善
 async function calculateDetails(me, candidate, infoId, limitId) {
-    if (me) {
-        const route = await getTransitInfo(me.station, candidate.name);
-        const el = document.getElementById(infoId);
-        if(el && route) el.innerHTML = `<span class="text-indigo-500 font-black">あなた：</span>${route.duration} <span class="text-slate-300 mx-1">/</span> 乗換${route.transfers}回`;
+    // 自分の経路情報
+    const el = document.getElementById(infoId);
+    if (me && me.station) {
+        try {
+            const route = await getTransitInfo(me.station, candidate.name);
+            if(el && route) {
+                el.innerHTML = `<span class="text-indigo-500 font-black">あなた：</span>${route.duration} <span class="text-slate-300 mx-1">/</span> 乗換${route.transfers}回`;
+            } else if(el) {
+                el.innerHTML = `<span class="text-slate-400">経路情報を取得できませんでした</span>`;
+            }
+        } catch(e) {
+            if(el) el.innerHTML = `<span class="text-slate-400">経路情報の取得に失敗</span>`;
+        }
+    } else if(el) {
+        el.innerHTML = `<span class="text-slate-400">参加すると経路が表示されます</span>`;
     }
-    const members = (groupData.members || []).filter(m => m.station);
+
+    // 終電情報
+    const limitEl = document.getElementById(limitId);
     const dateStr = document.getElementById('meetDate').value;
+    
     if (!dateStr) {
-        const lEl = document.getElementById(limitId);
-        if(lEl) lEl.innerHTML = `🌙 <span class="opacity-70">開催日を設定すると全員の終電を計算します</span>`;
+        if(limitEl) limitEl.innerHTML = `🌙 <span class="opacity-70">開催日を設定すると全員の終電を計算します</span>`;
         return;
     }
-    const res = await Promise.all(members.map(m => getTransitInfo(candidate.name, m.station, true)));
-    const valid = res.filter(r => r && r.depTime);
-    if (valid.length > 0) {
-        const earliest = valid.reduce((p, c) => p.depTime < c.depTime ? p : c);
-        const pName = members[res.indexOf(earliest)].name;
-        const limitEl = document.getElementById(limitId);
-        if(limitEl) limitEl.innerHTML = `⚠️ 全員リミット：${earliest.depTimeStr}頃 <span class="font-normal opacity-60">(${pName}さんの終電)</span>`;
+
+    const members = (groupData.members || []).filter(m => m.station);
+    if (members.length === 0) {
+        if(limitEl) limitEl.innerHTML = `<span class="opacity-70">メンバーがいません</span>`;
+        return;
     }
-}
 
-/** 投票 **/
-async function vote(sName) {
-    if (!myMemberId) return;
-    const v = { ...(groupData.memberVotes || {}) };
-    let myV = v[myMemberId] || [];
-    myV = myV.includes(sName) ? myV.filter(x => x !== sName) : [...myV, sName];
-    v[myMemberId] = myV;
-    await db.collection('groups').doc(groupId).update({ memberVotes: v });
-}
-
-/** 参加・追加 **/
-function showJoinForm() { document.getElementById('joinForm').classList.remove('hidden'); document.getElementById('joinBtn').classList.add('hidden'); editTargetId = null; }
-function closeJoinForm() { document.getElementById('joinForm').classList.add('hidden'); if(!myMemberId) document.getElementById('joinBtn').classList.remove('hidden'); }
-function openAddFriendModal() { document.getElementById('addFriendModal').classList.remove('hidden'); }
-function closeAddFriendModal() { document.getElementById('addFriendModal').classList.add('hidden'); }
-
-async function joinOrUpdateGroup() {
-    const name = document.getElementById('nickname').value.trim();
-    if (!name || (!selectedStation && !editTargetId)) return alert('入力を確認してください');
-    const members = [...(groupData.members || [])];
-    const target = members.find(m => m.id === editTargetId);
-    const mData = {
-        id: editTargetId || 'mem_' + Date.now(), name,
-        station: selectedStation ? selectedStation.name : target.station,
-        lat: selectedStation ? selectedStation.lat : target.lat,
-        lng: selectedStation ? selectedStation.lng : target.lng
-    };
-    if (editTargetId) { members[members.findIndex(m => m.id === editTargetId)] = mData; }
-    else { members.push(mData); localStorage.setItem('aida_member_' + groupId, mData.id); }
-    await db.collection('groups').doc(groupId).update({ members });
-    document.getElementById('nickname').value = ""; document.getElementById('stationInput').value = "";
-    selectedStation = null;
-    closeJoinForm();
-}
-
-async function submitAddFriend() {
-    const name = document.getElementById('addFriendNickname').value.trim();
-    if (!name || !addFriendSelectedStation) return alert('入力してください');
-    const member = { id: 'mem_' + Date.now(), name, station: addFriendSelectedStation.name, lat: addFriendSelectedStation.lat, lng: addFriendSelectedStation.lng };
-    await db.collection('groups').doc(groupId).update({ members: firebase.firestore.FieldValue.arrayUnion(member) });
-    document.getElementById('addFriendNickname').value = ""; document.getElementById('addFriendStationInput').value = "";
-    addFriendSelectedStation = null;
-    closeAddFriendModal();
-}
-
-function editMember(id) {
-    editTargetId = id;
-    const m = groupData.members.find(x => x.id === id);
-    document.getElementById('nickname').value = m.name;
-    document.getElementById('stationInput').value = m.station;
-    document.getElementById('formLabel').innerHTML = '<span>✏️</span> 情報を修正';
-    document.getElementById('cancelBtn').classList.remove('hidden');
-    showJoinForm();
-    document.getElementById('joinForm').scrollIntoView({ behavior: 'smooth' });
-}
-
-async function deleteMember(id) {
-    if(!confirm('削除しますか？')) return;
-    const members = groupData.members.filter(x => x.id !== id);
-    const v = { ...(groupData.memberVotes || {}) }; delete v[id];
-    await db.collection('groups').doc(groupId).update({ members, memberVotes: v });
-    if(id === myMemberId) localStorage.removeItem('aida_member_' + groupId);
-}
-
-/** 地図 **/
-function updateMap(id, cands, color) {
-    const map = new google.maps.Map(document.getElementById(id), { center: { lat: cands[0].lat, lng: cands[0].lng }, zoom: 13, disableDefaultUI: true, zoomControl: true });
-    const b = new google.maps.LatLngBounds();
-    cands.forEach((c, i) => {
-        const m = new google.maps.Marker({ position: { lat: c.lat, lng: c.lng }, map, label: { text: String(i+1), color: 'white', fontWeight: 'bold' }, icon: { path: google.maps.SymbolPath.CIRCLE, fillColor: color, fillOpacity: 1, scale: 13, strokeColor: 'white', strokeWeight: 2 } });
-        b.extend(m.getPosition());
-    });
-    map.fitBounds(b);
-}
-
-function renderRanking() {
-    const v = groupData.memberVotes || {};
-    const count = {};
-    Object.values(v).flat().forEach(s => count[s] = (count[s] || 0) + 1);
-    const sorted = Object.entries(count).sort((a,b) => b[1] - a[1]);
-    document.getElementById('rankingList').innerHTML = sorted.map(([n, c], i) => `
-        <div class="bg-white p-5 rounded-[1.5rem] flex justify-between items-center text-sm shadow-sm border border-slate-50">
-            <div class="flex items-center gap-3">
-                <span class="text-xs font-black text-slate-300">#${i+1}</span>
-                <span class="font-black text-slate-700">${n}駅</span>
-            </div>
-            <span class="text-[11px] font-black text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-full">${c} 票</span>
-        </div>
-    `).join('') || '<p class="text-center text-[10px] text-slate-400 py-8 font-bold">まだ投票はありません</p>';
-}
-
-function copyUrl() { navigator.clipboard.writeText(window.location.href); alert('招待URLをコピーしました 🔗'); }
-</script>
+    try {
+        const res = await Promise.all(members.map(m => getTransitInfo(candidate.name, m.station, true)));
+        const valid = res.filter(r => r && r.depTime);
+        
+        if (valid.length > 0) {
+            const earliest = valid.reduce((p, c) => p.depTime < c.depTime ? p : c);
+            const pName = members[res.indexOf(earliest)].name;
+            if(limitEl) limitEl.innerHTML = `⚠️ 全員リミット：${earliest.depTimeStr}頃 <span class="font-normal opacity-60">(${pName}さんの終電)</span>`;
+        } else if(limitEl) {
+            limitEl.innerHTML = `<span class="opacity-70">終電情報を取得できませんでした</span>`;
+        }
+    } catch(e) {
+        console.error
