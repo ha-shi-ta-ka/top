@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Golf Aida - 2025 ゴルフ場マッチング</title>
+    <title>Golf Aida - 公平なゴルフ場選び</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
     
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDzpRxX5te8hcxf_az6n92FTkoRbyCEXwI&libraries=places&callback=initApp"></script>
@@ -20,18 +20,17 @@
         }
     </script>
     <style>
-        .glass-card { background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.5); border-radius: 2rem; box-shadow: 0 20px 50px rgba(0,0,0,0.1); }
-        .role-btn { transition: all 0.2s; border: 2px solid #f1f5f9; }
+        .glass-card { background: rgba(255,255,255,0.98); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.5); border-radius: 2rem; box-shadow: 0 20px 50px rgba(0,0,0,0.1); }
         .role-btn.active { border-color: #15803d !important; background-color: #f0fdf4 !important; color: #15803d !important; }
-        .candidate-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .map-container { height: 250px; border-radius: 1.5rem; overflow: hidden; background: #e5e7eb; }
         .loading-dots:after { content: ' .'; animation: dots 1.5s steps(5, end) infinite; }
         @keyframes dots { 0%, 20% { color: rgba(0,0,0,0); text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0); } 40% { color: #666; text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0); } 60% { text-shadow: .25em 0 0 #666, .5em 0 0 rgba(0,0,0,0); } 80%, 100% { text-shadow: .25em 0 0 #666, .5em 0 0 #666; } }
     </style>
 </head>
 <body class="font-sans bg-slate-100 text-slate-900 min-h-screen pb-12">
-    <nav class="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4">
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200 px-6 py-4">
         <div class="max-w-2xl mx-auto flex justify-between items-center">
-            <a href="#" class="text-2xl font-black tracking-tighter text-golf font-heading italic">Golf Aida</a>
+            <a href="/golf/app.html" class="text-2xl font-black tracking-tighter text-golf font-heading italic">Golf Aida</a>
             <div id="dateStatus" class="hidden text-[10px] font-black bg-golf text-white px-3 py-1 rounded-full"></div>
         </div>
     </nav>
@@ -40,56 +39,73 @@
         <div id="createView">
             <div class="glass-card p-10 text-center">
                 <div class="w-16 h-16 bg-green-100 text-golf rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6">⛳️</div>
-                <h2 class="text-2xl font-black mb-6 font-heading">中間地点のコースを探す</h2>
-                <input type="text" id="groupName" placeholder="コンペ・合宿名" class="w-full px-6 py-4 rounded-xl border-2 border-slate-100 mb-6 outline-none focus:border-golf">
-                <button onclick="createGroup()" class="w-full py-5 rounded-2xl bg-golf text-white font-black text-lg shadow-xl shadow-green-200">グループ作成</button>
+                <h2 class="text-2xl font-black mb-6 font-heading italic">公平なゴルフ場選び</h2>
+                <input type="text" id="groupName" placeholder="コンペ名を入力" class="w-full px-6 py-4 rounded-xl border-2 border-slate-100 mb-6 outline-none focus:border-golf text-lg font-bold">
+                <button onclick="createGroup()" class="w-full py-5 rounded-2xl bg-golf text-white font-black text-lg shadow-lg hover:scale-[1.01] active:scale-95 transition-all">グループを作成</button>
             </div>
         </div>
 
         <div id="groupView" class="hidden space-y-6">
+            <div class="glass-card p-4 flex items-center justify-between gap-4">
+                <div class="flex-1 bg-slate-50 px-3 py-2 rounded-lg border border-slate-100 overflow-hidden">
+                    <div class="text-[9px] font-bold text-slate-400 uppercase">Invite URL</div>
+                    <div id="shareUrl" class="text-[11px] font-mono text-slate-600 truncate"></div>
+                </div>
+                <button onclick="copyUrl()" class="px-5 py-3 bg-golf text-white rounded-xl text-xs font-black whitespace-nowrap">コピー</button>
+            </div>
+
             <div class="glass-card p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-sm font-black text-slate-800">👥 メンバー (<span id="memberCount">0</span>)</h2>
                 </div>
                 <div id="memberList" class="space-y-3 mb-6"></div>
-                <button id="joinBtn" onclick="showJoinForm()" class="w-full py-4 rounded-2xl bg-golf text-white font-black shadow-lg">✋ 参加情報を入力</button>
+                <button id="joinBtn" onclick="showJoinForm()" class="w-full py-4 rounded-2xl bg-white border-2 border-golf text-golf font-black">✋ あなたの情報を入力</button>
             </div>
 
             <div id="joinForm" class="hidden glass-card p-6 border-2 border-golf/20 animate-fade-in">
-                <h2 class="text-sm font-black text-golf mb-6">📝 あなたの移動手段</h2>
-                <input type="text" id="nickname" placeholder="ニックネーム" class="w-full px-5 py-4 rounded-xl border-2 border-slate-100 mb-4 outline-none focus:border-golf font-bold">
-                <input type="text" id="addressInput" placeholder="出発地（自宅住所など）" class="w-full px-5 py-4 rounded-xl border-2 border-slate-100 mb-6 outline-none focus:border-golf font-bold">
+                <h2 class="text-sm font-black text-golf mb-6">📝 出発情報</h2>
+                <input type="text" id="nickname" placeholder="ニックネーム" class="w-full px-5 py-4 rounded-xl border-2 border-slate-100 mb-4 outline-none focus:border-golf text-lg font-bold">
                 
-                <p class="text-[10px] font-black text-slate-400 mb-3 ml-1 uppercase">移動タイプ</p>
+                <div class="mb-2">
+                    <input type="text" id="addressInput" placeholder="出発地（自宅住所など）" class="w-full px-5 py-4 rounded-xl border-2 border-slate-100 outline-none focus:border-golf text-lg font-bold">
+                </div>
+                
+                <button id="locBtn" onclick="getCurrentLocation()" class="flex items-center gap-2 text-golf text-[11px] font-black px-4 py-3 bg-green-50 rounded-xl mb-6 active:scale-95 transition-all border border-green-100">
+                    <span class="text-base">📍</span> 現在地を取得する
+                </button>
+                
+                <p class="text-[10px] font-black text-slate-400 mb-3 ml-1 uppercase font-bold">移動の役割</p>
                 <div class="grid grid-cols-3 gap-3 mb-8">
-                    <button type="button" onclick="setRole('driver')" id="role-driver" class="role-btn py-4 rounded-xl flex flex-col items-center gap-2 bg-white">
+                    <button onclick="setRole('driver')" id="role-driver" class="role-btn py-4 rounded-xl border-2 border-slate-100 flex flex-col items-center gap-2 bg-white">
                         <span class="text-2xl">🚗</span><span class="text-[10px] font-black">運転手</span>
                     </button>
-                    <button type="button" onclick="setRole('passenger')" id="role-passenger" class="role-btn py-4 rounded-xl flex flex-col items-center gap-2 bg-white">
+                    <button onclick="setRole('passenger')" id="role-passenger" class="role-btn py-4 rounded-xl border-2 border-slate-100 flex flex-col items-center gap-2 bg-white">
                         <span class="text-2xl">🙋‍♂️</span><span class="text-[10px] font-black">相乗り</span>
                     </button>
-                    <button type="button" onclick="setRole('individual')" id="role-individual" class="role-btn py-4 rounded-xl flex flex-col items-center gap-2 bg-white">
-                        <span class="text-2xl">🚆</span><span class="text-[10px] font-black">自走/電車</span>
+                    <button onclick="setRole('individual')" id="role-individual" class="role-btn py-4 rounded-xl border-2 border-slate-100 flex flex-col items-center gap-2 bg-white">
+                        <span class="text-2xl">🚆</span><span class="text-[10px] font-black">自走</span>
                     </button>
                 </div>
 
                 <div class="flex gap-2">
-                    <button onclick="joinGolfGroup()" class="flex-1 py-4 rounded-xl bg-slate-900 text-white font-bold">確定</button>
-                    <button onclick="closeJoinForm()" class="px-6 py-4 rounded-xl bg-slate-200">戻る</button>
+                    <button onclick="joinGolfGroup()" class="flex-1 py-4 rounded-xl bg-slate-900 text-white font-bold text-lg">確定</button>
+                    <button onclick="closeJoinForm()" class="px-6 py-4 rounded-xl bg-slate-200 font-bold">戻る</button>
                 </div>
             </div>
 
             <div id="golfSection" class="hidden space-y-4">
                 <div class="glass-card p-6">
-                    <h2 class="text-lg font-black text-slate-900 mb-4">⛳️ 中間地点周辺のコース</h2>
-                    <div id="golfCandidates" class="space-y-4"></div>
+                    <h2 class="text-lg font-black text-slate-900 mb-4 flex items-center gap-2">⛳️ 中間地点周辺のコース</h2>
+                    <div id="golfCandidates" class="space-y-4 text-center">
+                        <p class="py-10 text-xs text-slate-300 font-bold loading-dots">計算中</p>
+                    </div>
                 </div>
             </div>
         </div>
     </main>
 
 <script>
-    /** * Config */
+    /** * Config & Firebase */
     const RAKUTEN_APP_ID = "1018104301501452402";
     const RAKUTEN_AFFILIATE_ID = "4f92e4a3.4db7743d.4f92e4a4.13bb04b6";
     
@@ -106,7 +122,7 @@
     let groupId = null, groupData = null, myMemberId = null;
     let selectedPlace = null, currentRole = 'individual';
 
-    /** * Google Maps 初期化 */
+    /** * 初期化 */
     function initApp() {
         const urlParams = new URLSearchParams(window.location.search);
         groupId = urlParams.get('g');
@@ -116,13 +132,11 @@
             loadGroup();
         }
 
-        // 飲食店版と同じ安定した実装
         const input = document.getElementById('addressInput');
         const autocomplete = new google.maps.places.Autocomplete(input, {
-            types: ['geocode', 'establishment'],
+            types: ['address', 'establishment'],
             componentRestrictions: { country: 'jp' }
         });
-
         autocomplete.addListener('place_changed', () => {
             const place = autocomplete.getPlace();
             if (place.geometry) {
@@ -136,8 +150,39 @@
         setRole('individual');
     }
 
-    /** * データ処理 */
+    /** * 現在地取得ロジック */
+    function getCurrentLocation() {
+        if (!navigator.geolocation) return alert("位置情報に対応していません");
+        const btn = document.getElementById('locBtn');
+        btn.innerHTML = "取得中...";
+        btn.disabled = true;
+
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const geocoder = new google.maps.Geocoder();
+                geocoder.geocode({ location: { lat, lng } }, (res, status) => {
+                    if (status === "OK" && res[0]) {
+                        const addr = res[0].formatted_address.replace('日本、', '');
+                        document.getElementById('addressInput').value = addr;
+                        selectedPlace = { name: addr, lat, lng };
+                    }
+                    btn.innerHTML = "📍 現在地を取得する";
+                    btn.disabled = false;
+                });
+            },
+            (err) => {
+                alert("位置情報を許可してください");
+                btn.innerHTML = "📍 現在地を取得する";
+                btn.disabled = false;
+            }
+        );
+    }
+
+    /** * データ同期 */
     function loadGroup() {
+        document.getElementById('shareUrl').textContent = window.location.href;
         db.collection('groups').doc(groupId).onSnapshot(doc => {
             if (doc.exists) {
                 groupData = doc.data();
@@ -157,10 +202,10 @@
                     <p class="text-xs font-black">${m.name}</p>
                     <p class="text-[9px] text-slate-400 truncate">${m.address}</p>
                 </div>
+                <button onclick="deleteMember('${m.id}')" class="text-slate-300">🗑️</button>
             </div>`).join('');
 
         if (myMemberId) document.getElementById('joinBtn').classList.add('hidden');
-
         if (members.length >= 2) {
             calculateGolfCenter(members);
             document.getElementById('golfSection').classList.remove('hidden');
@@ -170,12 +215,8 @@
     async function calculateGolfCenter(members) {
         const lat = members.reduce((s, m) => s + m.lat, 0) / members.length;
         const lng = members.reduce((s, m) => s + m.lng, 0) / members.length;
-        
-        // 楽天API呼び出し（JSONP回避のため直接フェッチ）
         const rakutenUrl = `https://app.rakuten.co.jp/services/api/Gora/GoraGolfCourseSearch/20170623?format=json&latitude=${lat}&longitude=${lng}&searchRadius=50&applicationId=${RAKUTEN_APP_ID}&affiliateId=${RAKUTEN_AFFILIATE_ID}`;
         
-        document.getElementById('golfCandidates').innerHTML = `<p class="text-center py-10 text-xs text-slate-400 font-bold loading-dots">最適なコースを検索中</p>`;
-
         try {
             const res = await fetch(rakutenUrl);
             const data = await res.json();
@@ -187,26 +228,26 @@
         document.getElementById('golfCandidates').innerHTML = items.map(item => {
             const c = item.Item;
             return `
-                <div class="candidate-card p-5 bg-white border-2 border-slate-50 shadow-sm rounded-[2rem]">
+                <div class="candidate-card p-5 bg-white border-2 border-slate-50 shadow-sm rounded-[2rem] text-left">
                     <img src="${c.golfCourseImageUrl}" class="w-full h-32 object-cover rounded-2xl mb-4">
                     <div class="flex justify-between items-start mb-2">
                         <h3 class="font-black text-slate-800 flex-1 truncate text-sm">${c.golfCourseName}</h3>
                         <span class="bg-amber-100 text-amber-700 text-[9px] font-bold px-2 py-0.5 rounded">★${c.evaluation}</span>
                     </div>
-                    <a href="${c.reserveUrlPC}" target="_blank" class="block w-full py-4 bg-golf text-white text-center text-xs rounded-xl font-black shadow-lg shadow-green-100">このコースを予約</a>
+                    <p class="text-[10px] text-slate-400 mb-4 line-clamp-2 leading-relaxed">${c.golfCourseCaption}</p>
+                    <a href="${c.reserveUrlPC}" target="_blank" class="block w-full py-4 bg-golf text-white text-center text-xs rounded-xl font-black shadow-lg">楽天GORAで予約</a>
                 </div>`;
         }).join('');
     }
 
-    /** * UI Logic */
     function setRole(role) {
         currentRole = role;
         document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
         document.getElementById(`role-${role}`).classList.add('active');
     }
 
-    function showJoinForm() { document.getElementById('joinForm').classList.remove('hidden'); }
-    function closeJoinForm() { document.getElementById('joinForm').classList.add('hidden'); }
+    function showJoinForm() { document.getElementById('joinForm').classList.remove('hidden'); document.getElementById('joinBtn').classList.add('hidden'); }
+    function closeJoinForm() { document.getElementById('joinForm').classList.add('hidden'); if(!myMemberId) document.getElementById('joinBtn').classList.remove('hidden'); }
 
     async function createGroup() {
         const name = document.getElementById('groupName').value.trim() || 'ゴルフコンペ';
@@ -222,6 +263,15 @@
         localStorage.setItem('aida_member_' + groupId, m.id);
         closeJoinForm();
     }
+
+    async function deleteMember(id) {
+        if(!confirm('削除しますか？')) return;
+        const members = groupData.members.filter(x => x.id !== id);
+        await db.collection('groups').doc(groupId).update({ members });
+        if(id === myMemberId) localStorage.removeItem('aida_member_' + groupId);
+    }
+
+    function copyUrl() { navigator.clipboard.writeText(window.location.href); alert('招待URLをコピーしました！'); }
 </script>
 </body>
 </html>
