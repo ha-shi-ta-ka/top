@@ -154,22 +154,8 @@ let selectedStation = null, addFriendSelectedStation = null, editTargetId = null
 let currentBiasCandidates = [];
 let currentBiasMemberId = null; // 現在選択中のbiasメンバー
 
-function initApp() {
-    setupAutocomplete('stationInput', (place) => {
-        selectedStation = { 
-            name: place.name.replace(/駅$/g,''), 
-            lat: place.geometry.location.lat(), 
-            lng: place.geometry.location.lng() 
-        };
-    });
-    setupAutocomplete('addFriendStationInput', (place) => {
-        addFriendSelectedStation = { 
-            name: place.name.replace(/駅$/g,''), 
-            lat: place.geometry.location.lat(), 
-            lng: place.geometry.location.lng() 
-        };
-    });
-
+// Google Maps APIが読み込まれなくても基本機能は動くようにする
+document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     groupId = urlParams.get('g');
     if (groupId) {
@@ -177,6 +163,26 @@ function initApp() {
         document.getElementById('groupView').classList.remove('hidden');
         document.getElementById('dateSelection').classList.remove('hidden');
         loadGroup();
+    }
+});
+
+function initApp() {
+    // Google Maps Places Autocomplete（APIが読み込まれた時のみ）
+    if (typeof google !== 'undefined' && google.maps) {
+        setupAutocomplete('stationInput', (place) => {
+            selectedStation = { 
+                name: place.name.replace(/駅$/g,''), 
+                lat: place.geometry.location.lat(), 
+                lng: place.geometry.location.lng() 
+            };
+        });
+        setupAutocomplete('addFriendStationInput', (place) => {
+            addFriendSelectedStation = { 
+                name: place.name.replace(/駅$/g,''), 
+                lat: place.geometry.location.lat(), 
+                lng: place.geometry.location.lng() 
+            };
+        });
     }
 }
 
@@ -235,12 +241,17 @@ async function getTransitInfo(origin, destination, isLast = false) {
 }
 
 async function createGroup() {
-    const name = document.getElementById('groupName').value.trim() || '新しい集まり';
-    const doc = await db.collection('groups').add({ 
-        name, members: [], memberVotes: {}, date: null, 
-        createdAt: firebase.firestore.FieldValue.serverTimestamp() 
-    });
-    location.href = `?g=${doc.id}`;
+    try {
+        const name = document.getElementById('groupName').value.trim() || '新しい集まり';
+        const doc = await db.collection('groups').add({ 
+            name, members: [], memberVotes: {}, date: null, 
+            createdAt: firebase.firestore.FieldValue.serverTimestamp() 
+        });
+        location.href = `?g=${doc.id}`;
+    } catch(e) {
+        console.error('createGroup error:', e);
+        alert('グループ作成に失敗しました: ' + e.message);
+    }
 }
 
 function loadGroup() {
@@ -451,4 +462,190 @@ async function calculateDetails(me, candidate, infoId, limitId) {
             limitEl.innerHTML = `<span class="opacity-70">終電情報を取得できませんでした</span>`;
         }
     } catch(e) {
-        console.error
+        console.error('calculateDetails error:', e);
+        if(limitEl) limitEl.innerHTML = `<span class="opacity-70">終電情報の取得に失敗</span>`;
+    }
+}
+
+/** 投票 **/
+async function vote(sName) {
+    if (!myMemberId) {
+        alert('先に参加してください');
+        return;
+    }
+    const v = { ...(groupData.memberVotes || {}) };
+    let myV = v[myMemberId] || [];
+    myV = myV.includes(sName) ? myV.filter(x => x !== sName) : [...myV, sName];
+    v[myMemberId] = myV;
+    await db.collection('groups').doc(groupId).update({ memberVotes: v });
+}
+
+/** 参加・追加 **/
+function showJoinForm() { 
+    document.getElementById('joinForm').classList.remove('hidden'); 
+    document.getElementById('joinBtn').classList.add('hidden'); 
+    editTargetId = null;
+    document.getElementById('formLabel').innerHTML = '<span>🙋</span> 情報を入力';
+    document.getElementById('cancelBtn').classList.add('hidden');
+}
+
+function closeJoinForm() { 
+    document.getElementById('joinForm').classList.add('hidden'); 
+    if(!myMemberId) document.getElementById('joinBtn').classList.remove('hidden');
+    document.getElementById('nickname').value = "";
+    document.getElementById('stationInput').value = "";
+    selectedStation = null;
+    editTargetId = null;
+}
+
+function openAddFriendModal() { 
+    document.getElementById('addFriendModal').classList.remove('hidden'); 
+}
+
+function closeAddFriendModal() { 
+    document.getElementById('addFriendModal').classList.add('hidden');
+    document.getElementById('addFriendNickname').value = "";
+    document.getElementById('addFriendStationInput').value = "";
+    addFriendSelectedStation = null;
+}
+
+async function joinOrUpdateGroup() {
+    const name = document.getElementById('nickname').value.trim();
+    if (!name) {
+        alert('ニックネームを入力してください');
+        return;
+    }
+    if (!selectedStation && !editTargetId) {
+        alert('駅を選択してください');
+        return;
+    }
+    
+    const members = [...(groupData.members || [])];
+    const target = members.find(m => m.id === editTargetId);
+    
+    const mData = {
+        id: editTargetId || 'mem_' + Date.now(), 
+        name,
+        station: selectedStation ? selectedStation.name : target.station,
+        lat: selectedStation ? selectedStation.lat : target.lat,
+        lng: selectedStation ? selectedStation.lng : target.lng
+    };
+    
+    if (editTargetId) { 
+        members[members.findIndex(m => m.id === editTargetId)] = mData; 
+    } else { 
+        members.push(mData); 
+        localStorage.setItem('aida_member_' + groupId, mData.id);
+        myMemberId = mData.id;
+    }
+    
+    await db.collection('groups').doc(groupId).update({ members });
+    closeJoinForm();
+}
+
+async function submitAddFriend() {
+    const name = document.getElementById('addFriendNickname').value.trim();
+    if (!name) {
+        alert('名前を入力してください');
+        return;
+    }
+    if (!addFriendSelectedStation) {
+        alert('駅を選択してください');
+        return;
+    }
+    
+    const member = { 
+        id: 'mem_' + Date.now(), 
+        name, 
+        station: addFriendSelectedStation.name, 
+        lat: addFriendSelectedStation.lat, 
+        lng: addFriendSelectedStation.lng 
+    };
+    await db.collection('groups').doc(groupId).update({ 
+        members: firebase.firestore.FieldValue.arrayUnion(member) 
+    });
+    closeAddFriendModal();
+}
+
+function editMember(id) {
+    editTargetId = id;
+    const m = groupData.members.find(x => x.id === id);
+    document.getElementById('nickname').value = m.name;
+    document.getElementById('stationInput').value = m.station;
+    document.getElementById('formLabel').innerHTML = '<span>✏️</span> 情報を修正';
+    document.getElementById('cancelBtn').classList.remove('hidden');
+    document.getElementById('joinForm').classList.remove('hidden');
+    document.getElementById('joinBtn').classList.add('hidden');
+    document.getElementById('joinForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function deleteMember(id) {
+    if(!confirm('削除しますか？')) return;
+    const members = groupData.members.filter(x => x.id !== id);
+    const v = { ...(groupData.memberVotes || {}) }; 
+    delete v[id];
+    await db.collection('groups').doc(groupId).update({ members, memberVotes: v });
+    if(id === myMemberId) {
+        localStorage.removeItem('aida_member_' + groupId);
+        myMemberId = null;
+        document.getElementById('joinBtn').classList.remove('hidden');
+    }
+}
+
+/** 地図 **/
+function updateMap(id, cands, color) {
+    if (cands.length === 0) return;
+    
+    const mapEl = document.getElementById(id);
+    if (!mapEl) return;
+    
+    const map = new google.maps.Map(mapEl, { 
+        center: { lat: cands[0].lat, lng: cands[0].lng }, 
+        zoom: 13, 
+        disableDefaultUI: true, 
+        zoomControl: true 
+    });
+    
+    const b = new google.maps.LatLngBounds();
+    cands.forEach((c, i) => {
+        const m = new google.maps.Marker({ 
+            position: { lat: c.lat, lng: c.lng }, 
+            map, 
+            label: { text: String(i+1), color: 'white', fontWeight: 'bold' }, 
+            icon: { 
+                path: google.maps.SymbolPath.CIRCLE, 
+                fillColor: color, 
+                fillOpacity: 1, 
+                scale: 13, 
+                strokeColor: 'white', 
+                strokeWeight: 2 
+            } 
+        });
+        b.extend(m.getPosition());
+    });
+    map.fitBounds(b);
+}
+
+function renderRanking() {
+    const v = groupData.memberVotes || {};
+    const count = {};
+    Object.values(v).flat().forEach(s => count[s] = (count[s] || 0) + 1);
+    const sorted = Object.entries(count).sort((a,b) => b[1] - a[1]);
+    
+    document.getElementById('rankingList').innerHTML = sorted.map(([n, c], i) => `
+        <div class="bg-white p-5 rounded-[1.5rem] flex justify-between items-center text-sm shadow-sm border border-slate-50">
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-black text-slate-300">#${i+1}</span>
+                <span class="font-black text-slate-700">${n}駅</span>
+            </div>
+            <span class="text-[11px] font-black text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-full">${c} 票</span>
+        </div>
+    `).join('') || '<p class="text-center text-[10px] text-slate-400 py-8 font-bold">まだ投票はありません</p>';
+}
+
+function copyUrl() { 
+    navigator.clipboard.writeText(window.location.href); 
+    alert('招待URLをコピーしました 🔗'); 
+}
+</script>
+</html>
