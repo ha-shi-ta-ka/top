@@ -203,13 +203,23 @@ function setupAutocomplete(id, callback) {
 let directionsService = null;
 
 async function getTransitInfo(origin, destination, isLast = false) {
+    // Google Maps APIが利用できない場合はnullを返す
+    if (typeof google === 'undefined' || !google.maps || !google.maps.DirectionsService) {
+        console.log('Google Maps API not available');
+        return null;
+    }
+    
     if (!directionsService) directionsService = new google.maps.DirectionsService();
     const dateStr = document.getElementById('meetDate').value;
     
     return new Promise((resolve) => {
+        // 駅名に「駅」がなければ追加、日本を明示
+        const originStr = (origin.includes('駅') ? origin : origin + '駅') + ', 日本';
+        const destStr = (destination.includes('駅') ? destination : destination + '駅') + ', 日本';
+        
         const req = {
-            origin: origin + "駅", 
-            destination: destination + "駅",
+            origin: originStr, 
+            destination: destStr,
             travelMode: google.maps.TravelMode.TRANSIT,
             transitOptions: { routingPreference: google.maps.TransitRoutePreference.FEWER_TRANSFERS }
         };
@@ -220,7 +230,10 @@ async function getTransitInfo(origin, destination, isLast = false) {
         }
         
         // タイムアウト設定
-        const timeout = setTimeout(() => resolve(null), 5000);
+        const timeout = setTimeout(() => {
+            console.log('getTransitInfo timeout:', origin, '->', destination);
+            resolve(null);
+        }, 5000);
         
         directionsService.route(req, (res, status) => {
             clearTimeout(timeout);
@@ -234,6 +247,7 @@ async function getTransitInfo(origin, destination, isLast = false) {
                     depTimeStr: leg.departure_time ? leg.departure_time.text : "23:30頃"
                 });
             } else { 
+                console.log('Directions API error:', status, origin, '->', destination);
                 resolve(null); 
             }
         });
@@ -290,7 +304,7 @@ function renderAll() {
             <div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-[10px]">${m.name[0]}</div>
             <div class="flex-1 text-xs font-black text-slate-700">${m.name} <span class="text-[9px] text-slate-400 font-normal ml-1">(${m.station}駅)</span></div>
             <div class="flex gap-1">
-                <button onclick="editMember('${m.id}')" class="text-slate-300 hover:text-indigo-500 p-1 transition-colors text-xs">✏️</button>
+                <button onclick="editMember('${m.id}')" class="text-slate-300 hover:text-indigo-500 p-1 transition-colors text-xs"✏️</button>
                 <button onclick="deleteMember('${m.id}')" class="text-slate-300 hover:text-red-500 p-1 transition-colors text-xs">🗑️</button>
             </div>
         </div>
