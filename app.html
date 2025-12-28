@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aida - グループ | 待ち合わせ場所を投票で決める</title>
     
-    <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-WCDYPYTJE3"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
@@ -14,45 +13,38 @@
         gtag('config', 'G-WCDYPYTJE3');
     </script>
     
-    <!-- SEO Meta Tags -->
     <meta name="description" content="みんなの中間地点を計算して、投票で待ち合わせ場所を決めよう。登録不要・完全無料。">
     <meta name="robots" content="noindex, nofollow">
     
-    <!-- Open Graph -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Aida - 待ち合わせ場所を決めよう">
-    <meta property="og:description" content="みんなの中間地点を計算して、投票で待ち合わせ場所を決めよう。">
-    <meta property="og:image" content="https://aida-meet.jp/ogp.png">
-    
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Aida - 待ち合わせ場所を決めよう">
-    <meta name="twitter:description" content="みんなの中間地点を計算して、投票で待ち合わせ場所を決めよう。">
-    <meta name="twitter:image" content="https://aida-meet.jp/ogp.png">
-    
-    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
     <meta name="theme-color" content="#6366f1">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDzpRxX5te8hcxf_az6n92FTkoRbyCEXwI&libraries=places&callback=initApp"></script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     <script>
         tailwind.config = {
-            theme: { extend: { fontFamily: { sans: ['"Noto Sans JP"', 'sans-serif'], heading: ['"Outfit"', 'sans-serif'] } } }
+            theme: { 
+                extend: { 
+                    fontFamily: { sans: ['"Noto Sans JP"', 'sans-serif'], heading: ['"Outfit"', 'sans-serif'] },
+                    animation: { 'fade-in': 'fadeIn 0.4s ease-out' },
+                    keyframes: { fadeIn: { '0%': { opacity: '0', transform: 'translateY(5px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } }
+                } 
+            }
         }
     </script>
     <style>
         .glass { background: rgba(255,255,255,0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.5); }
         .glass-card { background: rgba(255,255,255,0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.5); border-radius: 1.5rem; box-shadow: 0 10px 40px rgba(0,0,0,0.08); }
-        .suggestions { position: absolute; left: 0; right: 0; z-index: 9999; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); max-height: 200px; overflow-y: auto; display: none; }
-        .suggestions.show { display: block; }
-        .map-container { height: 200px; border-radius: 12px; }
+        .map-container { height: 250px; border-radius: 1.5rem; width: 100%; }
+        .pac-container { border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15); font-family: "Noto Sans JP"; margin-top: 5px; }
+        .pac-item { padding: 12px; cursor: pointer; }
     </style>
 </head>
 <body class="font-sans bg-slate-50 text-slate-900 min-h-screen">
@@ -60,12 +52,14 @@
         <div class="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-500/20 rounded-full blur-[100px]"></div>
         <div class="absolute bottom-[-20%] left-[-10%] w-[400px] h-[400px] bg-pink-500/20 rounded-full blur-[100px]"></div>
     </div>
+    
     <nav class="fixed top-0 left-0 right-0 z-50 glass border-b border-white/20 px-6 py-4">
         <div class="max-w-2xl mx-auto flex justify-between items-center">
             <a href="index.html" class="text-2xl font-black tracking-tighter bg-gradient-to-r from-indigo-500 to-pink-500 bg-clip-text text-transparent font-heading">Aida</a>
             <a href="index.html" class="text-sm text-slate-500 hover:text-indigo-500 transition-colors">トップへ</a>
         </div>
     </nav>
+
     <main class="relative z-10 max-w-2xl mx-auto px-4 pt-24 pb-12">
         <div id="createView">
             <div class="glass-card p-8">
@@ -78,155 +72,90 @@
                 <button onclick="createGroup()" class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">グループを作成 →</button>
             </div>
         </div>
+
         <div id="groupView" class="hidden space-y-6">
-            <!-- URL共有 -->
             <div class="glass-card p-6">
                 <h2 class="text-sm font-bold text-slate-500 mb-4">📤 このURLを共有</h2>
-                <div class="bg-slate-100 rounded-xl p-4 mb-4"><p id="shareUrl" class="text-sm text-slate-700 break-all font-mono"></p></div>
+                <div class="bg-slate-100 rounded-xl p-4 mb-4 font-mono text-xs break-all" id="shareUrl"></div>
                 <div class="grid grid-cols-2 gap-3 mb-3">
-                    <button onclick="copyUrl()" class="py-3 rounded-xl bg-slate-900 text-white font-bold">📋 コピー</button>
-                    <button onclick="shareToLine()" class="py-3 rounded-xl bg-[#06C755] text-white font-bold">💬 LINE</button>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="shareToFacebook()" class="py-3 rounded-xl bg-[#1877F2] text-white font-bold">📘 Facebook</button>
-                    <button onclick="shareToInstagram()" class="py-3 rounded-xl bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] text-white font-bold">📷 Instagram</button>
+                    <button onclick="copyUrl()" class="py-3 rounded-xl bg-slate-900 text-white font-bold text-sm">📋 コピー</button>
+                    <button onclick="shareToLine()" class="py-3 rounded-xl bg-[#06C755] text-white font-bold text-sm">💬 LINE</button>
                 </div>
             </div>
-            <!-- メンバー -->
+
             <div class="glass-card p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-sm font-bold text-slate-500">👥 メンバー（<span id="memberCount">0</span>人）</h2>
-                    <button onclick="openAddFriendModal()" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg flex items-center gap-1">👤 友達を追加</button>
+                    <button onclick="openAddFriendModal()" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg">＋ 友達を追加</button>
                 </div>
                 <div id="memberList" class="space-y-3 mb-4"></div>
-                <button id="joinBtn" onclick="showJoinForm()" class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">✋ 自分も参加する</button>
+                <button id="joinBtn" onclick="showJoinForm()" class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold shadow-md">✋ 自分も参加する</button>
             </div>
-            <!-- 参加フォーム -->
-            <div id="joinForm" class="hidden glass-card p-6">
-                <h2 class="text-sm font-bold text-slate-500 mb-4">🙋 参加情報を入力</h2>
+
+            <div id="joinForm" class="hidden glass-card p-6 animate-fade-in">
+                <h2 class="text-sm font-bold text-slate-500 mb-4" id="formTitle">🙋 参加情報を入力</h2>
                 <input type="text" id="nickname" placeholder="ニックネーム" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg mb-4">
-                <p class="text-sm font-bold text-slate-700 mb-2">🚉 あなたの出発駅（最寄り駅）</p>
-                <p class="text-xs text-slate-400 mb-3">※ここから中間地点を計算します</p>
-                <label id="anywhereBtn" onclick="toggleAnywhere()" class="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border-2 border-amber-200 cursor-pointer mb-4">
+                <label onclick="toggleAnywhere()" class="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border-2 border-amber-200 cursor-pointer mb-4">
                     <div id="checkboxIcon" class="w-6 h-6 rounded-md border-2 border-amber-400 flex items-center justify-center text-white text-sm font-bold"></div>
                     <span class="font-bold text-amber-700">どこでもOK（駅を指定しない）</span>
                 </label>
-                <div id="stationWrapper" class="relative mb-4">
-                    <input type="text" id="stationInput" placeholder="出発駅を入力（例: 渋谷、新宿...）" oninput="searchStation()" onfocus="searchStation()" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg">
-                    <div id="suggestions" class="suggestions"></div>
+                <div id="stationWrapper" class="mb-4">
+                    <input type="text" id="stationInput" placeholder="出発駅を入力（例: 渋谷駅）" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg">
+                    <p class="text-[10px] text-slate-400 mt-2 px-1">※候補から駅名を選択してください</p>
                 </div>
-                <button onclick="joinGroup()" class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold shadow-lg shadow-indigo-500/25 hover:scale-[1.02] transition-transform">参加する →</button>
+                <button onclick="joinOrUpdateGroup()" class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold shadow-lg" id="submitBtn">参加する →</button>
             </div>
-            <!-- 編集フォーム -->
-            <div id="editForm" class="hidden glass-card p-6">
-                <h2 class="text-sm font-bold text-slate-500 mb-4">✏️ 情報を編集</h2>
-                <p class="text-sm font-bold text-slate-700 mb-2">🚉 出発駅を変更</p>
-                <label id="editAnywhereBtn" onclick="toggleEditAnywhere()" class="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border-2 border-amber-200 cursor-pointer mb-4">
-                    <div id="editCheckboxIcon" class="w-6 h-6 rounded-md border-2 border-amber-400 flex items-center justify-center text-white text-sm font-bold"></div>
-                    <span class="font-bold text-amber-700">どこでもOK（計算に含めない）</span>
-                </label>
-                <div id="editStationWrapper" class="relative mb-4">
-                    <input type="text" id="editStationInput" placeholder="新しい出発駅を入力" oninput="searchEditStation()" onfocus="searchEditStation()" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg">
-                    <div id="editSuggestions" class="suggestions"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="cancelEdit()" class="py-3 rounded-xl bg-slate-200 text-slate-700 font-bold">キャンセル</button>
-                    <button onclick="saveEdit()" class="py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold">保存する</button>
-                </div>
+
+            <div id="jumpButtons" class="hidden grid grid-cols-3 gap-2">
+                <button onclick="scrollToSection('normalSection')" class="py-3 rounded-xl bg-indigo-500 text-white font-bold text-xs shadow-sm">📍 候補</button>
+                <button onclick="scrollToSection('biasSection')" class="py-3 rounded-xl bg-pink-500 text-white font-bold text-xs shadow-sm">👤 寄せる</button>
+                <button onclick="scrollToSection('rankingSection')" class="py-3 rounded-xl bg-amber-500 text-white font-bold text-xs shadow-sm">🏆 ランク</button>
             </div>
-            <!-- ジャンプボタン -->
-            <div id="jumpButtons" class="hidden glass-card p-4">
-                <div class="grid grid-cols-3 gap-2">
-                    <button onclick="scrollToSection('normalSection')" class="py-3 rounded-xl bg-indigo-500 text-white font-bold text-sm">📍 ノーマル</button>
-                    <button onclick="scrollToSection('biasSection')" class="py-3 rounded-xl bg-pink-500 text-white font-bold text-sm">👤 寄せる</button>
-                    <button onclick="scrollToSection('rankingSection')" class="py-3 rounded-xl bg-amber-500 text-white font-bold text-sm">🏆 ランキング</button>
-                </div>
-            </div>
-            <!-- ノーマル候補セクション -->
+
             <div id="normalSection" class="hidden space-y-4">
                 <div class="glass-card p-6">
-                    <h2 class="text-lg font-black text-slate-900 mb-2">📍 ノーマル候補</h2>
-                    <p class="text-xs text-slate-400 mb-4">重心・密集度・主要駅を考慮した4つの候補</p>
-                    <div id="normalMap" class="map-container mb-4"></div>
-                    <div id="normalCandidates" class="space-y-3"></div>
+                    <h2 class="text-lg font-black text-slate-900 mb-4">📍 おすすめの候補駅</h2>
+                    <div id="normalMap" class="map-container mb-6 bg-slate-100 flex items-center justify-center text-slate-400">Map Loading...</div>
+                    <div id="normalCandidates" class="space-y-4"></div>
                 </div>
             </div>
-            <!-- 誰かに寄せるセクション -->
+
             <div id="biasSection" class="hidden space-y-4">
                 <div class="glass-card p-6">
                     <h2 class="text-lg font-black text-slate-900 mb-2">👤 誰かに寄せる</h2>
-                    <p class="text-xs text-slate-400 mb-4">特定の人の近くの駅を候補にする</p>
-                    <div id="biasMemberList" class="flex flex-wrap gap-2 mb-4"></div>
-                    <div id="biasMap" class="map-container mb-4"></div>
-                    <div id="biasCandidates" class="space-y-3"></div>
+                    <p class="text-xs text-slate-400 mb-4">主役や幹事の近くを候補にします</p>
+                    <div id="biasMemberList" class="flex flex-wrap gap-2 mb-6"></div>
+                    <div id="biasMap" class="map-container mb-6 bg-slate-100 flex items-center justify-center text-slate-400">Map Loading...</div>
+                    <div id="biasCandidates" class="space-y-4"></div>
                 </div>
             </div>
-            <!-- ランキングセクション -->
+
             <div id="rankingSection" class="hidden space-y-4">
                 <div class="glass-card p-6">
-                    <h2 class="text-lg font-black text-slate-900 mb-2">🏆 投票ランキング</h2>
-                    <p class="text-xs text-slate-400 mb-4">全ての投票結果</p>
+                    <h2 class="text-lg font-black text-slate-900 mb-4">🏆 投票ランキング</h2>
                     <div id="rankingList" class="space-y-3"></div>
-                    <div id="votersList" class="mt-4 pt-4 border-t border-slate-200">
-                        <h3 class="text-xs font-bold text-slate-400 mb-2">投票状況</h3>
-                        <div id="votersDetail" class="text-sm text-slate-600"></div>
-                    </div>
                 </div>
             </div>
         </div>
     </main>
-    
-    <!-- 友達追加モーダル -->
-    <div id="addFriendModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
-        <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-lg font-bold text-slate-900">👤 友達を追加（代理登録）</h2>
-                <button onclick="closeAddFriendModal()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
-            </div>
-            <input type="text" id="addFriendNickname" placeholder="友達のニックネーム" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg mb-4">
-            <p class="text-sm font-bold text-slate-700 mb-2">🚉 出発駅（最寄り駅）</p>
-            <label onclick="toggleAddFriendAnywhere()" class="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border-2 border-amber-200 cursor-pointer mb-4">
-                <div id="addFriendCheckboxIcon" class="w-6 h-6 rounded-md border-2 border-amber-400 flex items-center justify-center text-white text-sm font-bold"></div>
-                <span class="font-bold text-amber-700">どこでもOK（駅を指定しない）</span>
-            </label>
-            <div id="addFriendStationWrapper" class="relative mb-4">
-                <input type="text" id="addFriendStationInput" placeholder="出発駅を入力（例: 渋谷、新宿...）" oninput="searchAddFriendStation()" onfocus="searchAddFriendStation()" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg">
-                <div id="addFriendSuggestions" class="suggestions"></div>
-            </div>
+
+    <div id="addFriendModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl animate-fade-in">
+            <h2 class="text-xl font-bold mb-4 text-slate-900">👤 友達を追加</h2>
+            <input type="text" id="addFriendNickname" placeholder="名前" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 mb-4">
+            <input type="text" id="addFriendStationInput" placeholder="出発駅を入力" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 mb-6">
             <div class="grid grid-cols-2 gap-3">
-                <button onclick="closeAddFriendModal()" class="py-3 rounded-xl bg-slate-200 text-slate-700 font-bold">キャンセル</button>
-                <button onclick="submitAddFriend()" class="py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold">追加する</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- メンバー編集モーダル -->
-    <div id="editMemberModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
-        <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-lg font-bold text-slate-900">✏️ メンバーを編集</h2>
-                <button onclick="closeEditMemberModal()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
-            </div>
-            <input type="text" id="editMemberNickname" placeholder="ニックネーム" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg mb-4">
-            <p class="text-sm font-bold text-slate-700 mb-2">🚉 出発駅（最寄り駅）</p>
-            <label onclick="toggleEditMemberAnywhere()" class="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border-2 border-amber-200 cursor-pointer mb-4">
-                <div id="editMemberCheckboxIcon" class="w-6 h-6 rounded-md border-2 border-amber-400 flex items-center justify-center text-white text-sm font-bold"></div>
-                <span class="font-bold text-amber-700">どこでもOK（駅を指定しない）</span>
-            </label>
-            <div id="editMemberStationWrapper" class="relative mb-4">
-                <input type="text" id="editMemberStationInput" placeholder="出発駅を入力（例: 渋谷、新宿...）" oninput="searchEditMemberStation()" onfocus="searchEditMemberStation()" class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none text-lg">
-                <div id="editMemberSuggestions" class="suggestions"></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <button onclick="closeEditMemberModal()" class="py-3 rounded-xl bg-slate-200 text-slate-700 font-bold">キャンセル</button>
-                <button onclick="submitEditMember()" class="py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-bold">保存する</button>
+                <button onclick="closeAddFriendModal()" class="py-3 rounded-xl bg-slate-100 font-bold">戻る</button>
+                <button onclick="submitAddFriend()" class="py-3 rounded-xl bg-indigo-500 text-white font-bold">追加する</button>
             </div>
         </div>
     </div>
 </body>
-</html>
 
 <script>
+/**
+ * 設定・初期化
+ */
 const firebaseConfig = {
     apiKey: "AIzaSyCxj6Qxk6PkL9WhbIQZh_wCwlhZBdY8MrQ",
     authDomain: "aida-f2eb3.firebaseapp.com",
@@ -238,19 +167,81 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-let groupId = null, groupData = null, myMemberId = null, isAnywhere = false, selectedStation = null;
-let normalMap = null, biasMap = null;
-let normalCandidates = [], biasCandidates = [];
+let groupId = null, groupData = null, myMemberId = null;
+let gMapNormal = null, gMapBias = null;
+let normalMarkers = [], biasMarkers = [];
+let isAnywhere = false, selectedStation = null;
+let editTargetId = null;
 
-const busyStations = ['渋谷','新宿','池袋','東京','品川','上野','秋葉原','有楽町','銀座','六本木','恵比寿','目黒','五反田','大崎','新橋','浜松町','田町','高田馬場','中野','吉祥寺','立川','町田','横浜','川崎','大宮','千葉','船橋','柏','北千住','赤羽','蒲田','自由が丘','下北沢','三軒茶屋','中目黒','代官山','表参道','原宿','代々木','御茶ノ水','神田','日本橋','門前仲町','錦糸町','押上','浅草','巣鴨','大塚','駒込','王子','十条','板橋','練馬','荻窪','阿佐ヶ谷','高円寺','西荻窪','三鷹','武蔵境','国分寺','八王子','調布','府中','聖蹟桜ヶ丘','多摩センター','溝の口','武蔵小杉','日吉','菊名','新横浜','戸塚','藤沢','大船','鎌倉','茅ヶ崎','平塚','小田原','海老名','本厚木','相模大野','登戸','向ヶ丘遊園','浦和','川口','草加','越谷','春日部','久喜','熊谷','所沢','川越','志木','朝霞台','和光市','成増','光が丘','石神井公園','大泉学園','ひばりヶ丘','清瀬','東村山','小平','国立','日野','豊田','高尾','橋本','相模原','淵野辺','古淵','南町田','長津田','青葉台','たまプラーザ','あざみ野','センター北','センター南','新百合ヶ丘','中央林間','大和','二俣川','上大岡','金沢文庫','関内','桜木町','みなとみらい','元町・中華街'];
+// Google Maps API ロード後に呼ばれる
+function initApp() {
+    setupAutocomplete('stationInput');
+    setupAutocomplete('addFriendStationInput');
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    groupId = urlParams.get('g');
+    if (groupId) {
+        document.getElementById('createView').classList.add('hidden');
+        document.getElementById('groupView').classList.remove('hidden');
+        loadGroup();
+    }
+}
 
-const urlParams = new URLSearchParams(window.location.search);
-groupId = urlParams.get('g');
-if (groupId) { document.getElementById('createView').classList.add('hidden'); document.getElementById('groupView').classList.remove('hidden'); loadGroup(); }
+/**
+ * Google Maps Autocomplete (駅名予測)
+ */
+function setupAutocomplete(elementId) {
+    const input = document.getElementById(elementId);
+    const autocomplete = new google.maps.places.Autocomplete(input, {
+        types: ['transit_station'],
+        componentRestrictions: { country: 'jp' },
+        fields: ['name', 'geometry', 'formatted_address']
+    });
 
+    autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry) return;
+        
+        // "駅"を削る処理（API連携用）
+        const cleanName = place.name.replace(/駅$/g, '');
+        selectedStation = {
+            name: cleanName,
+            lat: place.geometry.location.lat(),
+            lng: place.geometry.location.lng()
+        };
+    });
+}
+
+/**
+ * 経路計算 (Directions API)
+ */
+let directionsService = null;
+function getRouteInfo(origin, destination) {
+    return new Promise((resolve) => {
+        if (!directionsService) directionsService = new google.maps.DirectionsService();
+        directionsService.route({
+            origin: origin + "駅",
+            destination: destination + "駅",
+            travelMode: google.maps.TravelMode.TRANSIT,
+            transitOptions: { routingPreference: google.maps.TransitRoutePreference.FEWER_TRANSFERS }
+        }, (res, status) => {
+            if (status === 'OK') {
+                const leg = res.routes[0].legs[0];
+                const transSteps = leg.steps.filter(s => s.travel_mode === 'TRANSIT');
+                resolve({ duration: leg.duration.text, transfers: Math.max(0, transSteps.length - 1) });
+            } else { resolve(null); }
+        });
+    });
+}
+
+/**
+ * グループ操作
+ */
 async function createGroup() {
-    const name = document.getElementById('groupName').value.trim() || '新しいグループ';
-    const docRef = await db.collection('groups').add({ name, members: [], memberVotes: {}, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    const name = document.getElementById('groupName').value.trim() || '新しい集まり';
+    const docRef = await db.collection('groups').add({
+        name, members: [], memberVotes: {}, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
     groupId = docRef.id;
     window.history.pushState({}, '', `?g=${groupId}`);
     document.getElementById('createView').classList.add('hidden');
@@ -258,750 +249,319 @@ async function createGroup() {
     loadGroup();
 }
 
-function getShareUrl() {
-    return window.location.protocol === 'https:' ? window.location.origin + '/app.html?g=' + groupId : 'https://top-bay-three.vercel.app/app.html?g=' + groupId;
-}
-
-function getMyStation() {
-    const savedId = localStorage.getItem('aida_member_' + groupId);
-    const me = (groupData?.members || []).find(m => m.id === savedId);
-    return me?.station || null;
-}
-
-async function loadGroup() {
-    document.getElementById('shareUrl').textContent = getShareUrl();
+function loadGroup() {
+    document.getElementById('shareUrl').textContent = window.location.href;
     db.collection('groups').doc(groupId).onSnapshot(doc => {
-        if (doc.exists) { groupData = doc.data(); renderAll(); }
+        if (doc.exists) {
+            groupData = doc.data();
+            renderAll();
+        }
     });
 }
 
 function renderAll() {
-    renderMembers();
-    const members = groupData.members || [];
-    const stationMembers = members.filter(m => !m.anywhere && m.lat && m.lng);
-    if (stationMembers.length >= 2) {
+    const savedId = localStorage.getItem('aida_member_' + groupId);
+    myMemberId = savedId;
+    
+    renderMembers(savedId);
+    
+    const sMembers = (groupData.members || []).filter(m => !m.anywhere && m.lat);
+    if (sMembers.length >= 2) {
         document.getElementById('jumpButtons').classList.remove('hidden');
         document.getElementById('normalSection').classList.remove('hidden');
         document.getElementById('biasSection').classList.remove('hidden');
         document.getElementById('rankingSection').classList.remove('hidden');
-        calculateAndRenderNormal(stationMembers);
-        renderBiasOptions(stationMembers);
+        calculateNormal(sMembers);
+        renderBiasOptions(sMembers);
         renderRanking();
     }
 }
 
-function renderMembers() {
+function renderMembers(savedId) {
     const list = document.getElementById('memberList');
     const members = groupData.members || [];
-    const savedId = localStorage.getItem('aida_member_' + groupId);
     document.getElementById('memberCount').textContent = members.length;
+    
     if (members.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8">まだ誰も参加していません</p>';
+        list.innerHTML = '<p class="text-center text-slate-400 py-6 text-sm">メンバーを募集しましょう</p>';
     } else {
         list.innerHTML = members.map(m => {
             const isMe = m.id === savedId;
             return `
-            <div class="flex items-center gap-4 p-4 bg-white/50 rounded-xl ${isMe ? 'ring-2 ring-indigo-400' : ''}">
-                <div class="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">${m.name.charAt(0)}</div>
-                <div class="flex-1">
-                    <p class="font-bold text-slate-900">${m.name}${isMe ? ' <span class="text-xs text-indigo-500">(自分)</span>' : ''}</p>
-                    <p class="text-sm text-slate-500">${m.anywhere ? '🌍 どこでもOK' : '🚉 ' + m.station + '駅'}</p>
+            <div class="flex items-center gap-3 p-4 bg-white/60 rounded-2xl border border-white shadow-sm ${isMe ? 'ring-2 ring-indigo-400 bg-white' : ''}">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 text-white flex items-center justify-center font-bold">${m.name[0]}</div>
+                <div class="flex-1 overflow-hidden">
+                    <p class="font-bold text-slate-900 truncate">${m.name} ${isMe ? '<span class="text-[10px] text-indigo-500 font-normal"> (自分)</span>' : ''}</p>
+                    <p class="text-xs text-slate-500">${m.anywhere ? '🌍 どこでもOK' : '🚉 ' + m.station + '駅'}</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="openEditMemberModal('${m.id}')" class="px-3 py-1 rounded-lg bg-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-300">✏️</button>
-                    <button onclick="deleteMember('${m.id}')" class="p-1 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors" title="削除">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                <div class="flex gap-1">
+                    <button onclick="editMember('${m.id}')" class="p-2 text-slate-400 hover:text-indigo-500">✏️</button>
+                    <button onclick="deleteMember('${m.id}')" class="p-2 text-slate-400 hover:text-red-500">🗑️</button>
                 </div>
-            </div>
-        `}).join('');
+            </div>`;
+        }).join('');
     }
-    if (savedId && members.find(m => m.id === savedId)) {
-        myMemberId = savedId;
+
+    if (savedId && members.some(m => m.id === savedId)) {
         document.getElementById('joinBtn').classList.add('hidden');
         document.getElementById('joinForm').classList.add('hidden');
-        document.getElementById('editForm').classList.add('hidden');
     }
 }
 
-function scrollToSection(id) {
-    document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
-}
+/**
+ * 候補駅計算 (HeartRails API + 重複排除)
+ */
+async function calculateNormal(sMembers) {
+    const avgLat = sMembers.reduce((s, m) => s + m.lat, 0) / sMembers.length;
+    const avgLng = sMembers.reduce((s, m) => s + m.lng, 0) / sMembers.length;
 
-async function calculateAndRenderNormal(stationMembers) {
-    const avgLat = stationMembers.reduce((s, m) => s + m.lat, 0) / stationMembers.length;
-    const avgLng = stationMembers.reduce((s, m) => s + m.lng, 0) / stationMembers.length;
-    
-    // 密集度計算: 各メンバーの近くに何人いるかで重み付け（50km以内の人数）
-    const getDistKm = (m1, m2) => Math.sqrt(Math.pow((m1.lat - m2.lat) * 111, 2) + Math.pow((m1.lng - m2.lng) * 91, 2));
-    const nearbyCount = stationMembers.map(m => {
-        return stationMembers.filter(other => other.id !== m.id && getDistKm(m, other) <= 50).length;
-    });
-    // 重み = 近くにいる人数 + 1（自分）
-    let totalLat = 0, totalLng = 0, totalWeight = 0;
-    stationMembers.forEach((m, i) => { 
-        const w = nearbyCount[i] + 1; 
-        totalLat += m.lat * w; 
-        totalLng += m.lng * w; 
-        totalWeight += w; 
-    });
-    const densityLat = totalLat / totalWeight, densityLng = totalLng / totalWeight;
-    
-    // 全国の主要駅（人口が多いエリアの駅）
-    const majorStations = [
-        // 東京都心
-        { name: '東京', lat: 35.6812, lng: 139.7671 },
-        { name: '新宿', lat: 35.6896, lng: 139.7006 },
-        { name: '渋谷', lat: 35.6580, lng: 139.7016 },
-        { name: '池袋', lat: 35.7295, lng: 139.7109 },
-        { name: '品川', lat: 35.6284, lng: 139.7387 },
-        { name: '上野', lat: 35.7141, lng: 139.7774 },
-        // 神奈川
-        { name: '横浜', lat: 35.4657, lng: 139.6225 },
-        { name: '川崎', lat: 35.5308, lng: 139.7030 },
-        { name: '藤沢', lat: 35.3386, lng: 139.4870 },
-        { name: '小田原', lat: 35.2564, lng: 139.1550 },
-        // 埼玉
-        { name: '大宮', lat: 35.9063, lng: 139.6237 },
-        { name: '川越', lat: 35.9078, lng: 139.4856 },
-        { name: '所沢', lat: 35.7872, lng: 139.4690 },
-        // 千葉
-        { name: '千葉', lat: 35.6139, lng: 140.1137 },
-        { name: '船橋', lat: 35.7015, lng: 139.9854 },
-        { name: '柏', lat: 35.8617, lng: 139.9714 },
-        // 北関東
-        { name: '宇都宮', lat: 36.5592, lng: 139.8985 },
-        { name: '高崎', lat: 36.3219, lng: 139.0134 },
-        { name: '水戸', lat: 36.3706, lng: 140.4769 },
-        // 静岡
-        { name: '静岡', lat: 34.9717, lng: 138.3889 },
-        { name: '浜松', lat: 34.7038, lng: 137.7349 },
-        { name: '熱海', lat: 35.1039, lng: 139.0779 },
-        { name: '沼津', lat: 35.0956, lng: 138.8636 },
-        // 中部
-        { name: '名古屋', lat: 35.1709, lng: 136.8815 },
-        { name: '金沢', lat: 36.5780, lng: 136.6476 },
-        { name: '長野', lat: 36.6432, lng: 138.1889 },
-        { name: '新潟', lat: 37.9126, lng: 139.0634 },
-        { name: '岐阜', lat: 35.4094, lng: 136.7567 },
-        // 関西
-        { name: '大阪', lat: 34.7024, lng: 135.4959 },
-        { name: '京都', lat: 34.9858, lng: 135.7588 },
-        { name: '神戸', lat: 34.6794, lng: 135.1800 },
-        { name: '奈良', lat: 34.6851, lng: 135.8048 },
-        { name: '姫路', lat: 34.8267, lng: 134.6914 },
-        // 中国
-        { name: '広島', lat: 34.3963, lng: 132.4594 },
-        { name: '岡山', lat: 34.6655, lng: 133.9185 },
-        // 四国
-        { name: '高松', lat: 34.3503, lng: 134.0467 },
-        { name: '松山', lat: 33.8396, lng: 132.7656 },
-        // 九州
-        { name: '博多', lat: 33.5902, lng: 130.4207 },
-        { name: '小倉', lat: 33.8863, lng: 130.8825 },
-        { name: '熊本', lat: 32.7898, lng: 130.6875 },
-        { name: '鹿児島中央', lat: 31.5842, lng: 130.5414 },
-        // 東北
-        { name: '仙台', lat: 38.2601, lng: 140.8820 },
-        { name: '盛岡', lat: 39.7014, lng: 141.1369 },
-        { name: '郡山', lat: 37.3985, lng: 140.3883 },
-        // 北海道
-        { name: '札幌', lat: 43.0687, lng: 141.3508 },
-        { name: '函館', lat: 41.7739, lng: 140.7264 }
-    ];
-    
     try {
-        const [res1, res2] = await Promise.all([
-            fetch(`https://express.heartrails.com/api/json?method=getStations&x=${avgLng}&y=${avgLat}`),
-            fetch(`https://express.heartrails.com/api/json?method=getStations&x=${densityLng}&y=${densityLat}`)
-        ]);
-        const [data1, data2] = await Promise.all([res1.json(), res2.json()]);
-        
-        const candidates = [];
-        const usedNames = new Set();
-        const stations1 = data1.response?.station ? [...new Map(data1.response.station.slice(0, 20).map(c => [c.name, c])).values()] : [];
-        const stations2 = data2.response?.station ? [...new Map(data2.response.station.slice(0, 20).map(c => [c.name, c])).values()] : [];
-        
-        // 駅が見つからない場合、重心に最も近い主要駅を候補にする
-        if (stations1.length === 0 && stations2.length === 0) {
-            // 重心から各主要駅への距離を計算（緯度1度≒111km）
-            const stationsWithDist = majorStations.map(st => ({
-                ...st,
-                distKm: Math.sqrt(Math.pow((st.lat - avgLat) * 111, 2) + Math.pow((st.lng - avgLng) * 91, 2))
-            })).sort((a, b) => a.distKm - b.distKm);
-            
-            // 最も近い主要駅
-            const nearestMajor = stationsWithDist[0];
-            const fallbackCandidates = [{
-                name: nearestMajor.name,
-                lat: nearestMajor.lat,
-                lng: nearestMajor.lng,
-                line: '主要ターミナル',
-                type: '🏙️ 重心に最も近い主要駅'
-            }];
-            
-            // 主要駅周辺5km以内の栄えている駅を検索
-            try {
-                const nearbyRes = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${nearestMajor.lng}&y=${nearestMajor.lat}`);
-                const nearbyData = await nearbyRes.json();
-                if (nearbyData.response?.station) {
-                    const nearbyStations = nearbyData.response.station;
-                    const usedNames = new Set([nearestMajor.name]);
-                    // 5km以内の栄えている駅を追加
-                    for (const s of nearbyStations) {
-                        if (fallbackCandidates.length >= 4) break;
-                        const distKm = Math.sqrt(Math.pow((parseFloat(s.y) - nearestMajor.lat) * 111, 2) + Math.pow((parseFloat(s.x) - nearestMajor.lng) * 91, 2));
-                        if (distKm <= 5 && busyStations.includes(s.name) && !usedNames.has(s.name)) {
-                            fallbackCandidates.push({
-                                name: s.name,
-                                lat: parseFloat(s.y),
-                                lng: parseFloat(s.x),
-                                line: s.line,
-                                type: '🏙️ 周辺の栄えている駅'
-                            });
-                            usedNames.add(s.name);
-                        }
-                    }
-                    // まだ4つに満たない場合、2番目に近い主要駅も追加
-                    if (fallbackCandidates.length < 4 && stationsWithDist.length > 1) {
-                        for (let i = 1; i < stationsWithDist.length && fallbackCandidates.length < 4; i++) {
-                            const st = stationsWithDist[i];
-                            if (!usedNames.has(st.name)) {
-                                fallbackCandidates.push({
-                                    name: st.name,
-                                    lat: st.lat,
-                                    lng: st.lng,
-                                    line: '主要ターミナル',
-                                    type: '🏙️ 候補の主要駅'
-                                });
-                                usedNames.add(st.name);
-                            }
-                        }
-                    }
-                }
-            } catch(e) { console.error('Nearby search error:', e); }
-            
-            // 4つに満たない場合、他の主要駅で埋める
-            const usedNames = new Set(fallbackCandidates.map(c => c.name));
-            for (let i = 1; i < stationsWithDist.length && fallbackCandidates.length < 4; i++) {
-                const st = stationsWithDist[i];
-                if (!usedNames.has(st.name)) {
-                    fallbackCandidates.push({
-                        name: st.name,
-                        lat: st.lat,
-                        lng: st.lng,
-                        line: '主要ターミナル',
-                        type: '🏙️ 候補の主要駅'
-                    });
-                    usedNames.add(st.name);
-                }
-            }
-            
-            normalCandidates = fallbackCandidates.slice(0, 4);
-            document.getElementById('normalCandidates').innerHTML = `
-                <p class="text-center text-amber-600 py-2 mb-4">⚠️ メンバーの距離が離れているため、主要駅エリアを候補として表示しています</p>
-            ` + normalCandidates.map((c, i) => renderCandidateCard(c, i, [], getMyStation(), 'normal')).join('');
-            renderNormalMap();
-            return;
-        }
-        
-        // 1. 重心に近い駅
-        if (stations1[0]) { candidates.push({ name: stations1[0].name, lat: parseFloat(stations1[0].y), lng: parseFloat(stations1[0].x), line: stations1[0].line, type: '📍 重心に近い駅' }); usedNames.add(stations1[0].name); }
-        // 2. 重心近くの主要駅
-        const busy1 = stations1.find(s => busyStations.includes(s.name) && !usedNames.has(s.name));
-        if (busy1) { candidates.push({ name: busy1.name, lat: parseFloat(busy1.y), lng: parseFloat(busy1.x), line: busy1.line, type: '🏙️ 重心近くの主要駅' }); usedNames.add(busy1.name); }
-        // 3. 密集度考慮の駅
-        const density = stations2.find(s => !usedNames.has(s.name));
-        if (density) { candidates.push({ name: density.name, lat: parseFloat(density.y), lng: parseFloat(density.x), line: density.line, type: '📊 密集度を考慮した駅' }); usedNames.add(density.name); }
-        // 4. 密集度近くの主要駅
-        const busy2 = stations2.find(s => busyStations.includes(s.name) && !usedNames.has(s.name));
-        if (busy2) { candidates.push({ name: busy2.name, lat: parseFloat(busy2.y), lng: parseFloat(busy2.x), line: busy2.line, type: '🏙️ 密集度近くの主要駅' }); usedNames.add(busy2.name); }
-        
-        // 4つに満たない場合、重心・密集度周辺の駅から追加
-        for (const s of [...stations1, ...stations2]) {
-            if (candidates.length >= 4) break;
-            if (!usedNames.has(s.name)) { candidates.push({ name: s.name, lat: parseFloat(s.y), lng: parseFloat(s.x), line: s.line, type: '📍 周辺駅' }); usedNames.add(s.name); }
-        }
-        
-        // それでも4つに満たない場合、主要駅リストから近い順に追加
-        if (candidates.length < 4) {
-            const majorStationsNearby = majorStations.map(st => ({
-                ...st,
-                distKm: Math.sqrt(Math.pow((st.lat - avgLat) * 111, 2) + Math.pow((st.lng - avgLng) * 91, 2))
-            })).sort((a, b) => a.distKm - b.distKm);
-            for (const st of majorStationsNearby) {
-                if (candidates.length >= 4) break;
-                if (!usedNames.has(st.name)) {
-                    candidates.push({ name: st.name, lat: st.lat, lng: st.lng, line: '主要ターミナル', type: '🏙️ 近くの主要駅' });
-                    usedNames.add(st.name);
-                }
-            }
-        }
-        
-        normalCandidates = candidates.slice(0, 4);
-        if (normalCandidates.length > 0) {
-            renderNormalMap();
-            renderNormalCandidates();
-        } else {
-            document.getElementById('normalCandidates').innerHTML = '<p class="text-center text-slate-400 py-4">⚠️ 候補が見つかりませんでした</p>';
-        }
-    } catch(e) { 
-        console.error('calculateAndRenderNormal error:', e); 
-        document.getElementById('normalCandidates').innerHTML = '<p class="text-center text-red-400 py-4">⚠️ エラーが発生しました</p>';
-    }
-}
-
-function renderNormalMap() {
-    if (normalCandidates.length === 0) return;
-    if (!normalMap) { normalMap = L.map('normalMap').setView([normalCandidates[0].lat, normalCandidates[0].lng], 12); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(normalMap); }
-    normalMap.eachLayer(layer => { if (layer instanceof L.Marker) normalMap.removeLayer(layer); });
-    normalCandidates.forEach((c, i) => {
-        const icon = L.divIcon({ className: '', html: `<div style="background:linear-gradient(135deg,#6366f1,#ec4899);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">${i+1}</div>`, iconSize: [28, 28] });
-        L.marker([c.lat, c.lng], { icon }).addTo(normalMap).bindPopup(`${c.name}駅`);
-    });
-    normalMap.fitBounds(L.latLngBounds(normalCandidates.map(c => [c.lat, c.lng])), { padding: [30, 30] });
-}
-
-function renderNormalCandidates() {
-    const memberVotes = groupData.memberVotes || {};
-    const myVotes = memberVotes[myMemberId] || [];
-    const myStation = getMyStation();
-    document.getElementById('normalCandidates').innerHTML = normalCandidates.map((c, i) => renderCandidateCard(c, i, myVotes, myStation, 'normal')).join('');
-}
-
-function renderBiasOptions(stationMembers) {
-    document.getElementById('biasMemberList').innerHTML = stationMembers.map(m => `
-        <button onclick="biasToMember('${m.id}')" class="px-4 py-2 rounded-full bg-pink-100 text-pink-700 font-bold text-sm hover:bg-pink-200 transition-colors">${m.name}さん</button>
-    `).join('');
-}
-
-async function biasToMember(memberId) {
-    const target = (groupData.members || []).find(m => m.id === memberId);
-    if (!target || !target.lat) return;
-    try {
-        const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${target.lng}&y=${target.lat}`);
+        const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${avgLng}&y=${avgLat}`);
         const data = await res.json();
-        if (data.response?.station) {
-            const stations = [...new Map(data.response.station.slice(0, 20).map(c => [c.name, c])).values()];
-            biasCandidates = stations.slice(0, 5).map(c => ({ name: c.name, lat: parseFloat(c.y), lng: parseFloat(c.x), line: c.line, type: `${target.name}さん周辺` }));
-            renderBiasMap();
-            renderBiasCandidates();
-        }
+        const rawStations = data.response?.station || [];
+        
+        // ★ 駅名の重複排除（路線が違っても駅名が同じなら1つに）
+        const uniqueMap = new Map();
+        rawStations.forEach(s => {
+            if (!uniqueMap.has(s.name)) {
+                uniqueMap.set(s.name, {
+                    name: s.name,
+                    lat: parseFloat(s.y),
+                    lng: parseFloat(s.x),
+                    line: s.line,
+                    type: '📍 中間地点の近く'
+                });
+            }
+        });
+
+        const normalCandidates = Array.from(uniqueMap.values()).slice(0, 4);
+        renderCandidatesUI('normalCandidates', normalCandidates, 'normal');
+        updateGoogleMap('normalMap', normalCandidates, 'normal');
     } catch(e) { console.error(e); }
 }
 
-function renderBiasMap() {
-    if (biasCandidates.length === 0) return;
-    if (!biasMap) { biasMap = L.map('biasMap').setView([biasCandidates[0].lat, biasCandidates[0].lng], 13); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(biasMap); }
-    biasMap.eachLayer(layer => { if (layer instanceof L.Marker) biasMap.removeLayer(layer); });
-    biasCandidates.forEach((c, i) => {
-        const icon = L.divIcon({ className: '', html: `<div style="background:linear-gradient(135deg,#ec4899,#f97316);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">${i+1}</div>`, iconSize: [28, 28] });
-        L.marker([c.lat, c.lng], { icon }).addTo(biasMap).bindPopup(`${c.name}駅`);
+/**
+ * 地図更新 (Google Maps化)
+ */
+function updateGoogleMap(containerId, candidates, type) {
+    const container = document.getElementById(containerId);
+    if (!candidates.length) return;
+
+    const center = { lat: candidates[0].lat, lng: candidates[0].lng };
+    const map = new google.maps.Map(container, {
+        center: center,
+        zoom: 13,
+        disableDefaultUI: true,
+        zoomControl: true,
+        styles: [{ featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }]
     });
-    biasMap.fitBounds(L.latLngBounds(biasCandidates.map(c => [c.lat, c.lng])), { padding: [30, 30] });
+
+    const bounds = new google.maps.LatLngBounds();
+    candidates.forEach((c, idx) => {
+        const marker = new google.maps.Marker({
+            position: { lat: c.lat, lng: c.lng },
+            map: map,
+            label: { text: String(idx + 1), color: 'white', fontWeight: 'bold' },
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: type === 'normal' ? '#6366f1' : '#ec4899',
+                fillOpacity: 1,
+                strokeWeight: 2,
+                strokeColor: '#white',
+                scale: 15
+            }
+        });
+        bounds.extend(marker.getPosition());
+    });
+    map.fitBounds(bounds);
 }
 
-function renderBiasCandidates() {
-    const memberVotes = groupData.memberVotes || {};
-    const myVotes = memberVotes[myMemberId] || [];
-    const myStation = getMyStation();
-    document.getElementById('biasCandidates').innerHTML = biasCandidates.map((c, i) => renderCandidateCard(c, i, myVotes, myStation, 'bias')).join('');
-}
+/**
+ * 候補UI表示 (投票バグ修正含む)
+ */
+function renderCandidatesUI(targetId, candidates, section) {
+    const myStation = (groupData.members || []).find(m => m.id === myMemberId)?.station;
+    const votes = groupData.memberVotes || {};
+    const myVotes = votes[myMemberId] || [];
 
-function renderCandidateCard(c, i, myVotes, myStation, section) {
-    const memberVotes = groupData.memberVotes || {};
-    let voteCount = 0;
-    Object.values(memberVotes).forEach(votes => { if (votes.includes(c.name)) voteCount++; });
-    const isVoted = myVotes.includes(c.name);
-    const navitimeUrl = myStation ? `https://www.navitime.co.jp/transfer/searchlist?orvStationName=${encodeURIComponent(myStation)}&dnvStationName=${encodeURIComponent(c.name)}` : '';
-    return `
-        <div class="p-4 rounded-2xl ${isVoted ? 'bg-green-50 border-2 border-green-400' : 'bg-white/60 border-2 border-transparent'} transition-all cursor-pointer hover:shadow-lg" onclick="vote('${c.name}')">
-            <div class="flex items-center justify-between mb-2">
+    document.getElementById(targetId).innerHTML = candidates.map((c, i) => {
+        const voteCount = Object.values(votes).filter(v => v.includes(c.name)).length;
+        const isVoted = myVotes.includes(c.name);
+        const infoId = `info-${section}-${i}`;
+
+        if (myStation) {
+            getRouteInfo(myStation, c.name).then(info => {
+                const el = document.getElementById(infoId);
+                if (el && info) el.innerHTML = `<span class="px-2 py-0.5 rounded bg-green-100 text-green-700 mr-2">${info.transfers === 0 ? '✨ 乗換なし' : '乗換 ' + info.transfers + '回'}</span><span>⏱ ${info.duration}</span>`;
+            });
+        }
+
+        return `
+        <div onclick="vote('${c.name}')" class="p-5 rounded-3xl border-2 transition-all cursor-pointer shadow-sm ${isVoted ? 'bg-green-50 border-green-400' : 'bg-white border-transparent hover:border-slate-200'}">
+            <div class="flex justify-between items-start mb-2">
                 <div class="flex items-center gap-3">
-                    <span class="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500 text-white flex items-center justify-center font-bold text-sm">${i+1}</span>
-                    <span class="font-bold text-lg">${c.name}駅</span>
+                    <span class="w-7 h-7 rounded-full flex items-center justify-center bg-slate-900 text-white text-xs font-bold">${i+1}</span>
+                    <h3 class="font-black text-lg">${c.name}駅</h3>
                 </div>
-                ${voteCount > 0 ? `<span class="px-3 py-1 rounded-full bg-blue-100 text-blue-600 text-xs font-bold">${voteCount}票</span>` : ''}
+                ${voteCount > 0 ? `<span class="px-3 py-1 bg-indigo-500 text-white text-[10px] font-bold rounded-full">${voteCount} 票</span>` : ''}
             </div>
-            <p class="text-sm text-slate-500 mb-1">${c.line || ''}</p>
-            <p class="text-xs text-indigo-500 font-bold mb-3">${c.type}</p>
-            <div class="grid grid-cols-2 gap-2 mb-2">
-                <a href="https://www.google.com/search?q=${encodeURIComponent(c.name + '駅 居酒屋 食べログ')}" target="_blank" onclick="event.stopPropagation()" class="py-2 rounded-xl bg-orange-500 text-white text-center font-bold text-sm">🍺 食べログ</a>
-                <a href="https://www.google.com/maps/search/居酒屋/@${c.lat},${c.lng},16z" target="_blank" onclick="event.stopPropagation()" class="py-2 rounded-xl bg-blue-500 text-white text-center font-bold text-sm">🗺️ Google Map</a>
+            <p class="text-xs text-slate-400 mb-3">${c.line}</p>
+            <div id="${infoId}" class="text-[11px] font-bold text-slate-600 mb-4 h-5 flex items-center"></div>
+            <div class="grid grid-cols-2 gap-2">
+                <a href="https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(c.name)}&to=${encodeURIComponent(myStation || '')}&type=last" target="_blank" onclick="event.stopPropagation()" class="py-2 bg-slate-800 text-white text-center text-[10px] font-bold rounded-xl">🌙 終電検索</a>
+                <a href="https://www.google.com/search?q=${encodeURIComponent(c.name + '駅 居酒屋')}" target="_blank" onclick="event.stopPropagation()" class="py-2 bg-orange-500 text-white text-center text-[10px] font-bold rounded-xl">🍺 店を探す</a>
             </div>
-            ${myStation ? `<a href="${navitimeUrl}" target="_blank" onclick="event.stopPropagation()" class="block py-2 rounded-xl bg-green-500 text-white text-center font-bold text-sm">🚃 ${myStation}駅からの乗換案内</a>` : ''}
-        </div>
-    `;
+        </div>`;
+    }).join('');
+}
+
+/**
+ * 誰かに寄せる
+ */
+function renderBiasOptions(sMembers) {
+    document.getElementById('biasMemberList').innerHTML = sMembers.map(m => `
+        <button onclick="calculateBias('${m.id}')" class="px-4 py-2 bg-pink-50 text-pink-600 border border-pink-100 rounded-full text-xs font-bold hover:bg-pink-100">${m.name}さん</button>
+    `).join('');
+}
+
+async function calculateBias(mId) {
+    const target = (groupData.members || []).find(m => m.id === mId);
+    if (!target) return;
+
+    try {
+        const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&x=${target.lng}&y=${target.lat}`);
+        const data = await res.json();
+        const raw = data.response?.station || [];
+        
+        const unique = new Map();
+        raw.forEach(s => {
+            if (!unique.has(s.name)) {
+                unique.set(s.name, { name: s.name, lat: parseFloat(s.y), lng: parseFloat(s.x), line: s.line, type: '👤 近くの駅' });
+            }
+        });
+
+        const biasCandidates = Array.from(unique.values()).slice(0, 4);
+        renderCandidatesUI('biasCandidates', biasCandidates, 'bias');
+        updateGoogleMap('biasMap', biasCandidates, 'bias');
+    } catch(e) { console.error(e); }
+}
+
+/**
+ * 投票
+ */
+async function vote(sName) {
+    if (!myMemberId) { alert('まずは参加してください'); return; }
+    const votes = { ...(groupData.memberVotes || {}) };
+    let myVotes = votes[myMemberId] || [];
+    
+    if (myVotes.includes(sName)) { myVotes = myVotes.filter(v => v !== sName); }
+    else { myVotes.push(sName); }
+    
+    votes[myMemberId] = myVotes;
+    await db.collection('groups').doc(groupId).update({ memberVotes: votes });
+}
+
+/**
+ * 参加・編集ロジック
+ */
+function showJoinForm() {
+    editTargetId = null;
+    document.getElementById('formTitle').textContent = '🙋 参加情報を入力';
+    document.getElementById('submitBtn').textContent = '参加する →';
+    document.getElementById('joinForm').classList.remove('hidden');
+    document.getElementById('joinBtn').classList.add('hidden');
+}
+
+function editMember(mId) {
+    const m = (groupData.members || []).find(x => x.id === mId);
+    if (!m) return;
+    editTargetId = mId;
+    document.getElementById('nickname').value = m.name;
+    document.getElementById('stationInput').value = m.station || '';
+    document.getElementById('formTitle').textContent = '✏️ 情報を編集';
+    document.getElementById('submitBtn').textContent = '更新する →';
+    document.getElementById('joinForm').classList.remove('hidden');
+    scrollToSection('joinForm');
+}
+
+async function joinOrUpdateGroup() {
+    const name = document.getElementById('nickname').value.trim();
+    if (!name) return alert('名前を入れてください');
+    if (!isAnywhere && !selectedStation && !editTargetId) return alert('駅名を選択してください');
+
+    const members = [...(groupData.members || [])];
+    const mData = {
+        id: editTargetId || 'mem_' + Date.now(),
+        name,
+        anywhere: isAnywhere,
+        station: isAnywhere ? null : (selectedStation ? selectedStation.name : (members.find(x=>x.id===editTargetId)?.station)),
+        lat: isAnywhere ? null : (selectedStation ? selectedStation.lat : (members.find(x=>x.id===editTargetId)?.lat)),
+        lng: isAnywhere ? null : (selectedStation ? selectedStation.lng : (members.find(x=>x.id===editTargetId)?.lng))
+    };
+
+    if (editTargetId) {
+        const idx = members.findIndex(x => x.id === editTargetId);
+        members[idx] = mData;
+    } else {
+        members.push(mData);
+        localStorage.setItem('aida_member_' + groupId, mData.id);
+    }
+
+    await db.collection('groups').doc(groupId).update({ members });
+    document.getElementById('joinForm').classList.add('hidden');
+    selectedStation = null;
+}
+
+/**
+ * その他ユーティリティ
+ */
+function toggleAnywhere() {
+    isAnywhere = !isAnywhere;
+    const box = document.getElementById('checkboxIcon');
+    const wrap = document.getElementById('stationWrapper');
+    if (isAnywhere) { box.innerHTML = '✓'; box.classList.add('bg-amber-400'); wrap.classList.add('hidden'); }
+    else { box.innerHTML = ''; box.classList.remove('bg-amber-400'); wrap.classList.remove('hidden'); }
+}
+
+async function deleteMember(mId) {
+    if (!confirm('削除しますか？')) return;
+    const members = (groupData.members || []).filter(x => x.id !== mId);
+    const votes = { ...(groupData.memberVotes || {}) };
+    delete votes[mId];
+    await db.collection('groups').doc(groupId).update({ members, memberVotes: votes });
+    if (mId === myMemberId) localStorage.removeItem('aida_member_' + groupId);
+}
+
+function scrollToSection(id) { document.getElementById(id).scrollIntoView({ behavior: 'smooth' }); }
+function copyUrl() { navigator.clipboard.writeText(window.location.href); alert('コピーしました'); }
+function shareToLine() { window.open(`https://line.me/R/msg/text/?${encodeURIComponent(groupData.name + ' の場所を決めよう！\n' + window.location.href)}`); }
+
+// 友達追加モーダル
+function openAddFriendModal() { document.getElementById('addFriendModal').classList.remove('hidden'); }
+function closeAddFriendModal() { document.getElementById('addFriendModal').classList.add('hidden'); }
+async function submitAddFriend() {
+    const name = document.getElementById('addFriendNickname').value.trim();
+    if (!name || !selectedStation) return alert('入力が足りません');
+    const member = { id: 'mem_' + Date.now(), name, anywhere: false, station: selectedStation.name, lat: selectedStation.lat, lng: selectedStation.lng };
+    await db.collection('groups').doc(groupId).update({ members: firebase.firestore.FieldValue.arrayUnion(member) });
+    selectedStation = null;
+    closeAddFriendModal();
 }
 
 function renderRanking() {
-    const memberVotes = groupData.memberVotes || {};
-    const members = groupData.members || [];
-    const allVoteCounts = {};
-    Object.values(memberVotes).forEach(votes => { votes.forEach(station => { allVoteCounts[station] = (allVoteCounts[station] || 0) + 1; }); });
+    const votes = groupData.memberVotes || {};
+    const count = {};
+    Object.values(votes).flat().forEach(s => count[s] = (count[s] || 0) + 1);
+    const sorted = Object.entries(count).sort((a,b) => b[1] - a[1]);
     
-    if (Object.keys(allVoteCounts).length === 0) {
-        document.getElementById('rankingList').innerHTML = '<p class="text-center text-slate-400 py-4">まだ投票がありません</p>';
-        document.getElementById('votersDetail').innerHTML = '';
-        return;
-    }
-    
-    const sorted = Object.entries(allVoteCounts).map(([name, votes]) => ({ name, votes })).sort((a, b) => b.votes - a.votes);
-    const maxVotes = sorted[0]?.votes || 1;
-    
-    document.getElementById('rankingList').innerHTML = sorted.map((s, i) => {
-        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-        const barWidth = Math.round((s.votes / maxVotes) * 100);
-        return `
-            <div class="flex items-center gap-3">
-                <span class="text-xl w-8">${medal}</span>
-                <span class="font-bold flex-1">${s.name}駅</span>
-                <div class="w-24 h-2 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-indigo-500 to-pink-500" style="width:${barWidth}%"></div></div>
-                <span class="text-sm font-bold text-slate-600 w-12 text-right">${s.votes}票</span>
+    document.getElementById('rankingList').innerHTML = sorted.map(([name, v], i) => `
+        <div class="flex items-center gap-4">
+            <span class="text-lg font-black text-slate-300 w-6">${i+1}</span>
+            <div class="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+                <span class="font-bold">${name}駅</span>
+                <span class="text-xs font-bold px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full">${v} 票</span>
             </div>
-        `;
-    }).join('');
-    
-    const voterDetails = [];
-    members.forEach(m => { const votes = memberVotes[m.id] || []; if (votes.length > 0) voterDetails.push(`<span class="font-bold">${m.name}</span>: ${votes.map(v => v + '駅').join(', ')}`); });
-    document.getElementById('votersDetail').innerHTML = voterDetails.length > 0 ? voterDetails.join('<br>') : '';
-}
-
-async function vote(stationName) {
-    if (!myMemberId) { alert('先に参加してください'); return; }
-    const memberVotes = { ...(groupData.memberVotes || {}) };
-    const myVotes = memberVotes[myMemberId] || [];
-    if (myVotes.includes(stationName)) { memberVotes[myMemberId] = myVotes.filter(v => v !== stationName); }
-    else { memberVotes[myMemberId] = [...myVotes, stationName]; }
-    await db.collection('groups').doc(groupId).update({ memberVotes });
-}
-
-function showJoinForm() { document.getElementById('joinForm').classList.remove('hidden'); document.getElementById('joinBtn').classList.add('hidden'); }
-
-function toggleAnywhere() {
-    isAnywhere = !isAnywhere;
-    const checkbox = document.getElementById('checkboxIcon');
-    const wrapper = document.getElementById('stationWrapper');
-    if (isAnywhere) { checkbox.innerHTML = '✓'; checkbox.classList.add('bg-amber-400'); wrapper.classList.add('hidden'); }
-    else { checkbox.innerHTML = ''; checkbox.classList.remove('bg-amber-400'); wrapper.classList.remove('hidden'); }
-}
-
-let searchTimeout = null;
-function searchStation() {
-    const query = document.getElementById('stationInput').value.trim();
-    const suggestionsDiv = document.getElementById('suggestions');
-    if (query.length < 1) { suggestionsDiv.classList.remove('show'); return; }
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(async () => {
-        suggestionsDiv.innerHTML = '<div class="p-4 text-slate-400">検索中...</div>';
-        suggestionsDiv.classList.add('show');
-        try {
-            const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&name=${encodeURIComponent(query)}`);
-            const data = await res.json();
-            if (data.response?.station) {
-                const unique = [...new Map(data.response.station.map(s => [s.name + s.line, s])).values()];
-                suggestionsDiv.innerHTML = unique.slice(0, 8).map(s => `<div class="p-4 hover:bg-slate-50 cursor-pointer border-b border-slate-100" onclick="selectStation('${s.name}',${s.y},${s.x},'${s.line}')"><p class="font-bold">${s.name}駅</p><p class="text-sm text-slate-500">${s.line}（${s.prefecture}）</p></div>`).join('');
-            } else { suggestionsDiv.innerHTML = '<div class="p-4 text-slate-400">見つかりません</div>'; }
-        } catch(e) { suggestionsDiv.innerHTML = '<div class="p-4 text-red-500">エラー</div>'; }
-    }, 300);
-}
-
-function selectStation(name, lat, lng, line) { selectedStation = { name, lat, lng, line }; document.getElementById('stationInput').value = name; document.getElementById('suggestions').classList.remove('show'); }
-
-async function joinGroup() {
-    const members = groupData.members || [];
-    if (members.length >= 20) { alert('メンバーは最大20人までです'); return; }
-    const name = document.getElementById('nickname').value.trim();
-    if (!name) { alert('ニックネームを入力してください'); return; }
-    if (!isAnywhere && !selectedStation) { alert('駅を選択するか「どこでもOK」を選んでください'); return; }
-    const memberId = 'member_' + Date.now();
-    const member = { id: memberId, name, anywhere: isAnywhere, station: isAnywhere ? null : selectedStation.name, lat: isAnywhere ? null : selectedStation.lat, lng: isAnywhere ? null : selectedStation.lng };
-    await db.collection('groups').doc(groupId).update({ members: firebase.firestore.FieldValue.arrayUnion(member) });
-    myMemberId = memberId;
-    localStorage.setItem('aida_member_' + groupId, memberId);
-    document.getElementById('joinForm').classList.add('hidden');
-}
-
-function copyUrl() { navigator.clipboard.writeText(getShareUrl()); alert('URLをコピーしました！'); }
-function shareToLine() { window.open(`https://line.me/R/msg/text/?${encodeURIComponent(`【${groupData?.name || 'グループ'}】の待ち合わせ場所を決めよう！\n\n${getShareUrl()}`)}`, '_blank'); }
-function shareToFacebook() { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getShareUrl())}`, '_blank'); }
-function shareToInstagram() { navigator.clipboard.writeText(getShareUrl()); window.location.href = 'instagram://direct-inbox'; setTimeout(() => alert('URLをコピーしました！\nInstagramのDMに貼り付けてください。'), 500); }
-
-// 編集機能
-let editAnywhere = false, editSelectedStation = null;
-
-function showEditForm() {
-    const me = (groupData.members || []).find(m => m.id === myMemberId);
-    if (!me) return;
-    editAnywhere = me.anywhere || false;
-    editSelectedStation = me.station ? { name: me.station, lat: me.lat, lng: me.lng } : null;
-    document.getElementById('editForm').classList.remove('hidden');
-    document.getElementById('editStationInput').value = me.station || '';
-    updateEditCheckbox();
-}
-
-function updateEditCheckbox() {
-    const checkbox = document.getElementById('editCheckboxIcon');
-    const wrapper = document.getElementById('editStationWrapper');
-    if (editAnywhere) { 
-        checkbox.innerHTML = '✓'; 
-        checkbox.classList.add('bg-amber-400'); 
-        wrapper.classList.add('hidden'); 
-    } else { 
-        checkbox.innerHTML = ''; 
-        checkbox.classList.remove('bg-amber-400'); 
-        wrapper.classList.remove('hidden'); 
-    }
-}
-
-function cancelEdit() { document.getElementById('editForm').classList.add('hidden'); }
-
-function toggleEditAnywhere() {
-    editAnywhere = !editAnywhere;
-    editSelectedStation = null;
-    document.getElementById('editStationInput').value = '';
-    updateEditCheckbox();
-}
-
-let editSearchTimeout = null;
-function searchEditStation() {
-    const query = document.getElementById('editStationInput').value.trim();
-    const suggestionsDiv = document.getElementById('editSuggestions');
-    if (query.length < 1) { suggestionsDiv.classList.remove('show'); return; }
-    clearTimeout(editSearchTimeout);
-    editSearchTimeout = setTimeout(async () => {
-        suggestionsDiv.innerHTML = '<div class="p-4 text-slate-400">検索中...</div>';
-        suggestionsDiv.classList.add('show');
-        try {
-            const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&name=${encodeURIComponent(query)}`);
-            const data = await res.json();
-            if (data.response?.station) {
-                const unique = [...new Map(data.response.station.map(s => [s.name + s.line, s])).values()];
-                suggestionsDiv.innerHTML = unique.slice(0, 8).map(s => `<div class="p-4 hover:bg-slate-50 cursor-pointer border-b border-slate-100" onclick="selectEditStation('${s.name}',${s.y},${s.x},'${s.line}')"><p class="font-bold">${s.name}駅</p><p class="text-sm text-slate-500">${s.line}（${s.prefecture}）</p></div>`).join('');
-            } else { suggestionsDiv.innerHTML = '<div class="p-4 text-slate-400">見つかりません</div>'; }
-        } catch(e) { suggestionsDiv.innerHTML = '<div class="p-4 text-red-500">エラー</div>'; }
-    }, 300);
-}
-
-function selectEditStation(name, lat, lng, line) { 
-    editSelectedStation = { name, lat, lng, line }; 
-    editAnywhere = false;
-    document.getElementById('editStationInput').value = name; 
-    document.getElementById('editSuggestions').classList.remove('show'); 
-}
-
-async function saveEdit() {
-    if (!editAnywhere && !editSelectedStation) { alert('駅を選択するか「どこでもOK」を選んでください'); return; }
-    const members = groupData.members || [];
-    const updatedMembers = members.map(m => {
-        if (m.id === myMemberId) {
-            return { ...m, anywhere: editAnywhere, station: editAnywhere ? null : editSelectedStation.name, lat: editAnywhere ? null : editSelectedStation.lat, lng: editAnywhere ? null : editSelectedStation.lng };
-        }
-        return m;
-    });
-    await db.collection('groups').doc(groupId).update({ members: updatedMembers });
-    document.getElementById('editForm').classList.add('hidden');
-}
-
-document.addEventListener('click', e => { 
-    if (!e.target.closest('#stationWrapper')) document.getElementById('suggestions').classList.remove('show'); 
-    if (!e.target.closest('#editStationWrapper')) document.getElementById('editSuggestions').classList.remove('show'); 
-    if (!e.target.closest('#addFriendStationWrapper')) { const el = document.getElementById('addFriendSuggestions'); if(el) el.classList.remove('show'); }
-    if (!e.target.closest('#editMemberStationWrapper')) { const el = document.getElementById('editMemberSuggestions'); if(el) el.classList.remove('show'); }
-});
-
-// 友達追加機能（代理登録）
-let isProxyMode = false;
-let addFriendAnywhere = false;
-let addFriendSelectedStation = null;
-
-function openAddFriendModal() {
-    isProxyMode = true;
-    addFriendAnywhere = false;
-    addFriendSelectedStation = null;
-    document.getElementById('addFriendModal').classList.remove('hidden');
-    document.getElementById('addFriendNickname').value = '';
-    document.getElementById('addFriendStationInput').value = '';
-    updateAddFriendCheckbox();
-}
-
-function closeAddFriendModal() {
-    document.getElementById('addFriendModal').classList.add('hidden');
-    isProxyMode = false;
-}
-
-function toggleAddFriendAnywhere() {
-    addFriendAnywhere = !addFriendAnywhere;
-    addFriendSelectedStation = null;
-    document.getElementById('addFriendStationInput').value = '';
-    updateAddFriendCheckbox();
-}
-
-function updateAddFriendCheckbox() {
-    const checkbox = document.getElementById('addFriendCheckboxIcon');
-    const wrapper = document.getElementById('addFriendStationWrapper');
-    if (addFriendAnywhere) { 
-        checkbox.innerHTML = '✓'; 
-        checkbox.classList.add('bg-amber-400'); 
-        wrapper.classList.add('hidden'); 
-    } else { 
-        checkbox.innerHTML = ''; 
-        checkbox.classList.remove('bg-amber-400'); 
-        wrapper.classList.remove('hidden'); 
-    }
-}
-
-let addFriendSearchTimeout = null;
-function searchAddFriendStation() {
-    const query = document.getElementById('addFriendStationInput').value.trim();
-    const suggestionsDiv = document.getElementById('addFriendSuggestions');
-    if (query.length < 1) { suggestionsDiv.classList.remove('show'); return; }
-    clearTimeout(addFriendSearchTimeout);
-    addFriendSearchTimeout = setTimeout(async () => {
-        suggestionsDiv.innerHTML = '<div class="p-4 text-slate-400">検索中...</div>';
-        suggestionsDiv.classList.add('show');
-        try {
-            const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&name=${encodeURIComponent(query)}`);
-            const data = await res.json();
-            if (data.response?.station) {
-                const unique = [...new Map(data.response.station.map(s => [s.name + s.line, s])).values()];
-                suggestionsDiv.innerHTML = unique.slice(0, 8).map(s => `<div class="p-4 hover:bg-slate-50 cursor-pointer border-b border-slate-100" onclick="selectAddFriendStation('${s.name}',${s.y},${s.x},'${s.line}')"><p class="font-bold">${s.name}駅</p><p class="text-sm text-slate-500">${s.line}（${s.prefecture}）</p></div>`).join('');
-            } else { suggestionsDiv.innerHTML = '<div class="p-4 text-slate-400">見つかりません</div>'; }
-        } catch(e) { suggestionsDiv.innerHTML = '<div class="p-4 text-red-500">エラー</div>'; }
-    }, 300);
-}
-
-function selectAddFriendStation(name, lat, lng, line) { 
-    addFriendSelectedStation = { name, lat, lng, line }; 
-    addFriendAnywhere = false;
-    document.getElementById('addFriendStationInput').value = name; 
-    document.getElementById('addFriendSuggestions').classList.remove('show'); 
-}
-
-async function submitAddFriend() {
-    const members = groupData.members || [];
-    if (members.length >= 20) { alert('メンバーは最大20人までです'); return; }
-    const name = document.getElementById('addFriendNickname').value.trim();
-    if (!name) { alert('ニックネームを入力してください'); return; }
-    if (!addFriendAnywhere && !addFriendSelectedStation) { alert('駅を選択するか「どこでもOK」を選んでください'); return; }
-    const memberId = 'member_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    const member = { id: memberId, name, anywhere: addFriendAnywhere, station: addFriendAnywhere ? null : addFriendSelectedStation.name, lat: addFriendAnywhere ? null : addFriendSelectedStation.lat, lng: addFriendAnywhere ? null : addFriendSelectedStation.lng };
-    await db.collection('groups').doc(groupId).update({ members: firebase.firestore.FieldValue.arrayUnion(member) });
-    closeAddFriendModal();
-    alert('友達を追加しました！');
-}
-
-// メンバー削除機能（誰でも削除可能）
-async function deleteMember(targetId) {
-    if (!confirm('このメンバーを削除しますか？')) return;
-    const members = groupData.members || [];
-    const newMembers = members.filter(m => m.id !== targetId);
-    const newVotes = { ...(groupData.memberVotes || {}) };
-    delete newVotes[targetId];
-    await db.collection('groups').doc(groupId).update({ members: newMembers, memberVotes: newVotes });
-    if (targetId === myMemberId) {
-        myMemberId = null;
-        localStorage.removeItem('aida_member_' + groupId);
-        document.getElementById('joinBtn').classList.remove('hidden');
-    }
-}
-
-// メンバー編集機能（誰でも編集可能）
-let editMemberTargetId = null;
-let editMemberAnywhere = false;
-let editMemberSelectedStation = null;
-
-function openEditMemberModal(memberId) {
-    const member = (groupData.members || []).find(m => m.id === memberId);
-    if (!member) return;
-    
-    editMemberTargetId = memberId;
-    editMemberAnywhere = member.anywhere || false;
-    editMemberSelectedStation = member.station ? { name: member.station, lat: member.lat, lng: member.lng } : null;
-    
-    document.getElementById('editMemberNickname').value = member.name;
-    document.getElementById('editMemberStationInput').value = member.station || '';
-    document.getElementById('editMemberModal').classList.remove('hidden');
-    updateEditMemberCheckbox();
-}
-
-function closeEditMemberModal() {
-    document.getElementById('editMemberModal').classList.add('hidden');
-    editMemberTargetId = null;
-}
-
-function toggleEditMemberAnywhere() {
-    editMemberAnywhere = !editMemberAnywhere;
-    editMemberSelectedStation = null;
-    document.getElementById('editMemberStationInput').value = '';
-    updateEditMemberCheckbox();
-}
-
-function updateEditMemberCheckbox() {
-    const checkbox = document.getElementById('editMemberCheckboxIcon');
-    const wrapper = document.getElementById('editMemberStationWrapper');
-    if (editMemberAnywhere) { 
-        checkbox.innerHTML = '✓'; 
-        checkbox.classList.add('bg-amber-400'); 
-        wrapper.classList.add('hidden'); 
-    } else { 
-        checkbox.innerHTML = ''; 
-        checkbox.classList.remove('bg-amber-400'); 
-        wrapper.classList.remove('hidden'); 
-    }
-}
-
-let editMemberSearchTimeout = null;
-function searchEditMemberStation() {
-    const query = document.getElementById('editMemberStationInput').value.trim();
-    const suggestionsDiv = document.getElementById('editMemberSuggestions');
-    if (query.length < 1) { suggestionsDiv.classList.remove('show'); return; }
-    clearTimeout(editMemberSearchTimeout);
-    editMemberSearchTimeout = setTimeout(async () => {
-        suggestionsDiv.innerHTML = '<div class="p-4 text-slate-400">検索中...</div>';
-        suggestionsDiv.classList.add('show');
-        try {
-            const res = await fetch(`https://express.heartrails.com/api/json?method=getStations&name=${encodeURIComponent(query)}`);
-            const data = await res.json();
-            if (data.response?.station) {
-                const unique = [...new Map(data.response.station.map(s => [s.name + s.line, s])).values()];
-                suggestionsDiv.innerHTML = unique.slice(0, 8).map(s => `<div class="p-4 hover:bg-slate-50 cursor-pointer border-b border-slate-100" onclick="selectEditMemberStation('${s.name}',${s.y},${s.x},'${s.line}')"><p class="font-bold">${s.name}駅</p><p class="text-sm text-slate-500">${s.line}（${s.prefecture}）</p></div>`).join('');
-            } else { suggestionsDiv.innerHTML = '<div class="p-4 text-slate-400">見つかりません</div>'; }
-        } catch(e) { suggestionsDiv.innerHTML = '<div class="p-4 text-red-500">エラー</div>'; }
-    }, 300);
-}
-
-function selectEditMemberStation(name, lat, lng, line) { 
-    editMemberSelectedStation = { name, lat, lng, line }; 
-    editMemberAnywhere = false;
-    document.getElementById('editMemberStationInput').value = name; 
-    document.getElementById('editMemberSuggestions').classList.remove('show'); 
-}
-
-async function submitEditMember() {
-    if (!editMemberTargetId) return;
-    const name = document.getElementById('editMemberNickname').value.trim();
-    if (!name) { alert('ニックネームを入力してください'); return; }
-    if (!editMemberAnywhere && !editMemberSelectedStation) { alert('駅を選択するか「どこでもOK」を選んでください'); return; }
-    
-    const members = groupData.members || [];
-    const updatedMembers = members.map(m => {
-        if (m.id === editMemberTargetId) {
-            return { 
-                ...m, 
-                name,
-                anywhere: editMemberAnywhere, 
-                station: editMemberAnywhere ? null : editMemberSelectedStation.name, 
-                lat: editMemberAnywhere ? null : editMemberSelectedStation.lat, 
-                lng: editMemberAnywhere ? null : editMemberSelectedStation.lng 
-            };
-        }
-        return m;
-    });
-    await db.collection('groups').doc(groupId).update({ members: updatedMembers });
-    closeEditMemberModal();
-    alert('保存しました！');
+        </div>
+    `).join('') || '<p class="text-center py-6 text-slate-400 text-xs">まだ投票がありません</p>';
 }
 </script>
